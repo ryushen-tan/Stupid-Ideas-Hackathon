@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Drip Authenticator",
+    "slug": "threadcheck",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.threadcheck.app",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "Connect to your Threadcheck vault on the same Wi-Fi."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#A2FAA3",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.threadcheck.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scan setup QR codes and photograph your clothes off your body.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose clothing photos for your wardrobe and visual checks.",
+          "cameraPermission": "Take a clothing reference photo or check a piece.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Confirm your daily outfit with Face ID. Threadcheck never receives a face image."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "scheme": "threadcheck"
+  }
+}
