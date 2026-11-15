@@ -62,16 +62,19 @@ export function CameraScanner({
           facing="back"
           enableTorch={torch}
           barcodeScannerSettings={{
-            barcodeTypes: [
-              "qr",
-              "ean13",
-              "ean8",
-              "upc_a",
-              "code128",
-              "code39",
-              "pdf417",
-              "datamatrix",
-            ],
+            barcodeTypes:
+              purpose === "account"
+                ? ["qr"]
+                : [
+                    "qr",
+                    "ean13",
+                    "ean8",
+                    "upc_a",
+                    "code128",
+                    "code39",
+                    "pdf417",
+                    "datamatrix",
+                  ],
           }}
           onMountError={(event) => setError(event.message)}
           onBarcodeScanned={({ data }) => {
@@ -84,7 +87,9 @@ export function CameraScanner({
         <View pointerEvents="none" style={styles.frame} />
         <View pointerEvents="none" style={styles.caption}>
           <Text style={{ color: "white" }}>
-            Keep the whole tag inside the frame
+            {purpose === "account"
+              ? "Keep the setup QR code inside the frame"
+              : "Keep the whole tag inside the frame"}
           </Text>
         </View>
       </View>

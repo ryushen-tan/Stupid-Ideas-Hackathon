@@ -14,7 +14,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
-import { DripRow, dripRowsSchema } from "../../shared/drip";
 
 const entries = [
   {
@@ -46,19 +45,11 @@ const entries = [
 type MenuPage = (typeof entries)[number]["id"];
 
 export function DripMenu({
-  rows,
   onClose,
-  onImport,
-  saving,
-  ready,
-  saveError,
+  onScan,
 }: {
-  rows: DripRow[];
   onClose: () => void;
-  onImport: (rows: DripRow[]) => Promise<void>;
-  saving: boolean;
-  ready: boolean;
-  saveError: string;
+  onScan: () => void;
 }) {
   const [page, setPage] = useState<MenuPage | null>(null);
   const [input, setInput] = useState("");
@@ -74,23 +65,6 @@ export function DripMenu({
           ? failure.message
           : "Could not copy. Try again.",
       );
-    }
-  }
-
-  function importRows() {
-    try {
-      const imported = dripRowsSchema.parse(JSON.parse(input));
-      if (new Set(imported.map((row) => row.id)).size !== imported.length) {
-        setMessage("This transfer contains duplicate outfits.");
-        return;
-      }
-      const existingIds = new Set(rows.map((row) => row.id));
-      void onImport([
-        ...rows,
-        ...imported.filter((row) => !existingIds.has(row.id)),
-      ]);
-    } catch {
-      setMessage("Paste a valid Drip outfit export to import it.");
     }
   }
 
@@ -187,11 +161,13 @@ export function DripMenu({
                       Read each outfit from left to right: head, body, feet.
                     </Text>
                     <Text style={styles.body}>
-                      The hoodie, jeans, and cap swap places every 30 seconds.
-                      When the timer empties, your next combination appears.
+                      Each service has its own real verification code. The
+                      clothing arrangement follows that code; use the digits
+                      when signing in.
                     </Text>
                     <Text style={styles.body}>
-                      Your clothes are already ready. No initial scan needed.
+                      Scan your fit each morning. Review the cutouts to use your
+                      own top, pants and hat for today.
                     </Text>
                   </>
                 )}
@@ -206,8 +182,15 @@ export function DripMenu({
                       <Text style={styles.secondary}>30 seconds</Text>
                     </View>
                     <Text style={styles.body}>
-                      Outfit names are saved on this device.
+                      Service accounts are saved on this device.
                     </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      style={styles.button}
+                      onPress={onScan}
+                    >
+                      <Text style={styles.buttonText}>Scan today’s fit</Text>
+                    </Pressable>
                     <Pressable
                       accessibilityRole="button"
                       style={styles.button}
@@ -221,51 +204,11 @@ export function DripMenu({
                   </>
                 )}
                 {page === "transfer" && (
-                  <>
-                    <Text style={styles.body}>
-                      Copy your outfit names to another device, then paste them
-                      here to import. Existing outfits stay saved.
-                    </Text>
-                    <Text style={styles.secondary}>
-                      Transfers these demo outfits only. Authenticator secrets
-                      and vault accounts are not included.
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      style={styles.button}
-                      disabled={!ready}
-                      onPress={() => void copy(JSON.stringify(rows))}
-                    >
-                      <Text style={styles.buttonText}>Copy outfit export</Text>
-                    </Pressable>
-                    <TextInput
-                      accessibilityLabel="Outfit export to import"
-                      multiline
-                      placeholder="Paste outfit export"
-                      placeholderTextColor="#939694"
-                      value={input}
-                      onChangeText={setInput}
-                      style={styles.input}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={saving || !ready || !input.trim()}
-                      style={[
-                        styles.button,
-                        (saving || !ready || !input.trim()) && styles.disabled,
-                      ]}
-                      onPress={importRows}
-                    >
-                      <Text style={styles.buttonText}>
-                        {saving ? "Importing…" : "Import outfits"}
-                      </Text>
-                    </Pressable>
-                    {!!saveError && (
-                      <Text accessibilityRole="alert" style={styles.message}>
-                        {saveError}
-                      </Text>
-                    )}
-                  </>
+                  <Text style={styles.body}>
+                    To add an account on another device, open that service’s
+                    security settings and enroll the new authenticator there.
+                    Keep its recovery codes safe.
+                  </Text>
                 )}
                 {page === "feedback" && (
                   <>
@@ -295,17 +238,18 @@ export function DripMenu({
                 {page === "help" && (
                   <>
                     <Text style={styles.body}>
-                      Tap + to add an outfit name. Tap an outfit to rename or
-                      remove it. Use Search to find a saved outfit.
+                      Tap the + hat to scan the setup QR from an app or
+                      website’s two-factor security settings. You can also enter
+                      its setup key.
                     </Text>
                     <Text style={styles.body}>
                       If the timer paused while the app was closed, reopen it to
                       catch up to the current combination.
                     </Text>
                     <Text style={styles.secondary}>
-                      The three preset outfit codes are a local demo, not codes
-                      for third-party accounts. Your original authenticator
-                      tools are under Settings → Vault & scanners.
+                      Tap a service to copy its code, change its account label,
+                      or remove it. The separate outfit-gated vault is under
+                      Settings → Vault & scanners.
                     </Text>
                   </>
                 )}

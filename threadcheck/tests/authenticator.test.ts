@@ -3,7 +3,8 @@ import { after, before, test } from "node:test";
 import supertest from "supertest";
 import * as OTPAuth from "otpauth";
 import { createApp } from "../server/app";
-import { secretCipher, parseAccount } from "../server/secrets";
+import { secretCipher } from "../server/secrets";
+import { parseAccount } from "../shared/totp";
 import { testDatabase, vaultOptions } from "./database";
 import {
   AuthenticatorAccount,

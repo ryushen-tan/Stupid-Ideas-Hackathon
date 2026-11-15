@@ -385,7 +385,12 @@ export default function App() {
                   >
                     {sheet?.type === "account" && session && (
                       <AccountForm
-                        session={session}
+                        onAdd={async (input) => {
+                          await request(session, "/vault/accounts", {
+                            method: "POST",
+                            body: JSON.stringify(input),
+                          });
+                        }}
                         onSaved={() => {
                           setSheet(null);
                           setRevision((value) => value + 1);

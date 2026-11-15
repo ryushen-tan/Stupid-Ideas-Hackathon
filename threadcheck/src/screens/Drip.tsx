@@ -18,17 +18,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
+import { currentOutfit, Outfit, placements } from "../../shared/drip";
 import {
-  currentOutfit,
-  defaultDripRows,
-  DripRow,
-  Outfit,
-  dripRowsSchema,
-  placements,
-  rotationMilliseconds,
-} from "../../shared/drip";
+  dailyFitStorageKey,
+  localDay,
+  SavedFit,
+  savedFitSchema,
+} from "../../shared/daily-fit";
+import { ScanFit } from "./ScanFit";
 import { DripMenu } from "../components/DripMenu";
 import { Garment } from "../components/Garment";
+import { AccountForm } from "./AccountForm";
+import { loadAccounts, saveAccounts, LocalAccount } from "../accounts";
+import { accountCode, parseAccount } from "../../shared/totp";
+import * as Clipboard from "expo-clipboard";
 
 const streetwear: Record<
   Outfit["head"],
@@ -56,12 +59,17 @@ const colors = {
   blue: "#A8C7FA",
   line: "#424547",
 };
-const storageKey = "drip-rows";
-type Sheet = { kind: "menu" } | { kind: "add" } | { kind: "row"; row: DripRow };
+type Sheet =
+  | { kind: "menu" }
+  | { kind: "scan" }
+  | { kind: "add" }
+  | { kind: "row"; row: LocalAccount };
 
 export default function Drip() {
-  const [rows, setRows] = useState(defaultDripRows);
+  const [rows, setRows] = useState<LocalAccount[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [dailyFit, setDailyFit] = useState<SavedFit | null>(null);
+  const [skippedDay, setSkippedDay] = useState("");
   const [timestamp, setTimestamp] = useState(Date.now);
   const [search, setSearch] = useState("");
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -71,16 +79,17 @@ export default function Drip() {
 
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(storageKey)
-      .then((stored) => {
+    Promise.all([loadAccounts(), AsyncStorage.getItem(dailyFitStorageKey)])
+      .then(([stored, savedFit]) => {
         if (mounted) {
-          if (stored) setRows(dripRowsSchema.parse(JSON.parse(stored)));
+          setRows(stored);
+          if (savedFit) setDailyFit(savedFitSchema.parse(JSON.parse(savedFit)));
           setLoaded(true);
         }
       })
       .catch((failure: Error) => {
         if (mounted)
-          setError(`Could not load your saved rows: ${failure.message}`);
+          setError(`Could not load your accounts: ${failure.message}`);
       });
     const interval = setInterval(() => setTimestamp(Date.now()), 250);
     const subscription = AppState.addEventListener("change", (state) => {
@@ -93,11 +102,11 @@ export default function Drip() {
     };
   }, []);
 
-  async function saveRows(nextRows: DripRow[]) {
+  async function saveRows(nextRows: LocalAccount[]) {
     setSaving(true);
     setError("");
     try {
-      await AsyncStorage.setItem(storageKey, JSON.stringify(nextRows));
+      await saveAccounts(nextRows);
       setRows(nextRows);
       setSheet(null);
     } catch (failure) {
@@ -123,19 +132,34 @@ export default function Drip() {
           row.id === sheet.row.id ? { ...row, label: name } : row,
         ),
       );
-    } else {
-      void saveRows([
-        ...rows,
-        { id: `drip-${Date.now()}`, label: name, offset: rows.length % 3 },
-      ]);
     }
   }
 
+  const day = localDay(new Date(timestamp));
+  const clothing =
+    dailyFit?.day === day
+      ? {
+          hoodie: {
+            source: { uri: dailyFit.items.top.photo },
+            name: dailyFit.items.top.name,
+          },
+          pants: {
+            source: { uri: dailyFit.items.pants.photo },
+            name: dailyFit.items.pants.name,
+          },
+          hat: {
+            source: { uri: dailyFit.items.hat.photo },
+            name: dailyFit.items.hat.name,
+          },
+        }
+      : streetwear;
+  const showDailyScan =
+    sheet?.kind === "scan" ||
+    (loaded && !sheet && dailyFit?.day !== day && skippedDay !== day);
+
   const visibleRows = rows.filter((row) =>
-    row.label.toLowerCase().includes(search.toLowerCase()),
+    `${row.issuer} ${row.label}`.toLowerCase().includes(search.toLowerCase()),
   );
-  const remaining =
-    1 - (timestamp % rotationMilliseconds) / rotationMilliseconds;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -162,7 +186,7 @@ export default function Drip() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="About your local outfits"
+            accessibilityLabel="About your authenticator"
             onPress={() => setSheet({ kind: "menu" })}
             style={styles.avatar}
           >
@@ -170,7 +194,7 @@ export default function Drip() {
           </Pressable>
         </View>
         <TextInput
-          accessibilityLabel="Search outfits"
+          accessibilityLabel="Search services"
           placeholder="Search…"
           placeholderTextColor={colors.muted}
           value={search}
@@ -190,12 +214,15 @@ export default function Drip() {
           keyboardShouldPersistTaps="handled"
         >
           {visibleRows.map((row) => {
-            const outfit = currentOutfit(timestamp, row.offset);
+            const code = accountCode(row, timestamp);
+            const outfit = currentOutfit(timestamp, Number(code) % 3);
+            const remaining =
+              1 - (timestamp % (row.period * 1000)) / (row.period * 1000);
             return (
               <Pressable
                 key={row.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${row.label}: ${placements.map((place) => `${streetwear[outfit[place]].name} on your ${place}`).join(", ")}. Edit outfit name.`}
+                accessibilityLabel={`${row.issuer}: ${row.label}. View account.`}
                 onPress={() => {
                   setLabel(row.label);
                   setError("");
@@ -203,14 +230,22 @@ export default function Drip() {
                 }}
                 style={({ pressed }) => [styles.row, pressed && styles.pressed]}
               >
-                <Text style={styles.rowTitle}>{row.label}</Text>
+                <Text style={styles.rowTitle}>{row.issuer}</Text>
+                <Text style={styles.note}>{row.label}</Text>
+                <Text
+                  selectable
+                  accessibilityLabel={`Authentication code for ${row.issuer}`}
+                  style={styles.otp}
+                >
+                  {code}
+                </Text>
                 <View style={styles.code}>
                   <View style={styles.garments}>
                     {placements.map((place) => (
                       <View key={place} style={styles.placement}>
                         <Image
-                          source={streetwear[outfit[place]].source}
-                          accessibilityLabel={streetwear[outfit[place]].name}
+                          source={clothing[outfit[place]].source}
+                          accessibilityLabel={clothing[outfit[place]].name}
                           style={styles.clothingImage}
                           resizeMode="contain"
                           fadeDuration={0}
@@ -219,20 +254,22 @@ export default function Drip() {
                       </View>
                     ))}
                   </View>
-                  <Countdown remaining={remaining} />
+                  <Countdown remaining={remaining} period={row.period} />
                 </View>
               </Pressable>
             );
           })}
           {!visibleRows.length && (
             <Text style={styles.empty}>
-              {search ? "No matching outfits" : "Tap + to add an outfit."}
+              {search
+                ? "No matching services"
+                : "Tap the + hat to scan a setup QR and add your first app or service."}
             </Text>
           )}
         </ScrollView>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Add outfit"
+          accessibilityLabel="Add app or service"
           disabled={!loaded}
           onPress={() => {
             setLabel("");
@@ -246,15 +283,24 @@ export default function Drip() {
       </View>
       {sheet?.kind === "menu" && (
         <DripMenu
-          rows={rows}
+          onScan={() => setSheet({ kind: "scan" })}
           onClose={() => setSheet(null)}
-          onImport={saveRows}
-          saving={saving}
-          ready={loaded}
-          saveError={error}
         />
       )}
-      {sheet && sheet.kind !== "menu" && (
+      {showDailyScan && (
+        <ScanFit
+          onClose={() => {
+            setSkippedDay(day);
+            setSheet(null);
+          }}
+          onSave={async (fit) => {
+            await AsyncStorage.setItem(dailyFitStorageKey, JSON.stringify(fit));
+            setDailyFit(fit);
+            setSheet(null);
+          }}
+        />
+      )}
+      {sheet && sheet.kind !== "menu" && sheet.kind !== "scan" && (
         <Modal
           transparent
           animationType="fade"
@@ -270,10 +316,24 @@ export default function Drip() {
               style={StyleSheet.absoluteFill}
               onPress={() => setSheet(null)}
             />
-            <View style={styles.sheet} accessibilityViewIsModal>
+            <View
+              style={[
+                styles.sheet,
+                sheet.kind === "add" && {
+                  backgroundColor: "#F5F7F2",
+                  maxHeight: "95%",
+                },
+              ]}
+              accessibilityViewIsModal
+            >
               <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>
-                  {sheet.kind === "add" ? "Add outfit" : "Edit outfit"}
+                <Text
+                  style={[
+                    styles.sheetTitle,
+                    sheet.kind === "add" && { color: "#203C3B" },
+                  ]}
+                >
+                  {sheet.kind === "add" ? "Scan setup QR" : sheet.row.issuer}
                 </Text>
                 <Pressable
                   accessibilityLabel="Close dialog"
@@ -284,60 +344,118 @@ export default function Drip() {
                   <Text style={styles.close}>×</Text>
                 </Pressable>
               </View>
-              <>
-                <TextInput
-                  accessibilityLabel="Outfit name"
-                  placeholder="Outfit name"
-                  placeholderTextColor={colors.muted}
-                  value={label}
-                  onChangeText={setLabel}
-                  maxLength={60}
-                  autoFocus
-                  style={styles.nameInput}
-                  onSubmitEditing={() => {
-                    if (!saving && loaded) saveLabel();
-                  }}
-                  returnKeyType="done"
-                  selectionColor={colors.blue}
-                />
-                <Text style={styles.note}>
-                  Uses the same three ready-made clothing orders.
-                </Text>
-                {!!error && (
-                  <Text accessibilityRole="alert" style={styles.error}>
-                    {error}
+              {sheet.kind === "add" ? (
+                <ScrollView keyboardShouldPersistTaps="handled">
+                  <AccountForm
+                    onAdd={async (input) => {
+                      const parsed = parseAccount(input);
+                      if (
+                        rows.some(
+                          (account) =>
+                            account.secret === parsed.secret &&
+                            account.issuer === parsed.issuer &&
+                            account.label === parsed.label,
+                        )
+                      ) {
+                        throw new Error(
+                          "This service account is already added.",
+                        );
+                      }
+                      const nextRows = [
+                        ...rows,
+                        {
+                          ...parsed,
+                          id: `account-${Date.now()}`,
+                          createdAt: new Date().toISOString(),
+                        },
+                      ];
+                      await saveAccounts(nextRows);
+                      setRows(nextRows);
+                    }}
+                    onSaved={() => setSheet(null)}
+                  />
+                </ScrollView>
+              ) : (
+                <>
+                  <Text selectable style={styles.otp}>
+                    {accountCode(sheet.row, timestamp)}
                   </Text>
-                )}
-                <View style={styles.actions}>
-                  {sheet.kind === "row" && (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={styles.action}
+                    onPress={async () => {
+                      try {
+                        await Clipboard.setStringAsync(
+                          accountCode(sheet.row, Date.now()),
+                        );
+                        setError("");
+                        setSheet(null);
+                      } catch (failure) {
+                        setError(
+                          failure instanceof Error
+                            ? failure.message
+                            : "Could not copy the code.",
+                        );
+                      }
+                    }}
+                  >
+                    <Text style={styles.linkText}>Copy code</Text>
+                  </Pressable>
+                  <TextInput
+                    accessibilityLabel="Account label"
+                    placeholder="Account label"
+                    placeholderTextColor={colors.muted}
+                    value={label}
+                    onChangeText={setLabel}
+                    maxLength={60}
+                    autoFocus
+                    style={styles.nameInput}
+                    onSubmitEditing={() => {
+                      if (!saving && loaded) saveLabel();
+                    }}
+                    returnKeyType="done"
+                    selectionColor={colors.blue}
+                  />
+                  <Text style={styles.note}>
+                    Enter the current code on the service to finish setup or
+                    sign in.
+                  </Text>
+                  {!!error && (
+                    <Text accessibilityRole="alert" style={styles.error}>
+                      {error}
+                    </Text>
+                  )}
+                  <View style={styles.actions}>
+                    {sheet.kind === "row" && (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={saving || !loaded}
+                        onPress={() =>
+                          void saveRows(
+                            rows.filter((row) => row.id !== sheet.row.id),
+                          )
+                        }
+                        style={styles.action}
+                      >
+                        <Text style={styles.deleteText}>Remove</Text>
+                      </Pressable>
+                    )}
                     <Pressable
                       accessibilityRole="button"
                       disabled={saving || !loaded}
-                      onPress={() =>
-                        void saveRows(
-                          rows.filter((row) => row.id !== sheet.row.id),
-                        )
-                      }
-                      style={styles.action}
+                      onPress={saveLabel}
+                      style={[
+                        styles.save,
+                        (saving || !loaded) && styles.disabled,
+                      ]}
                     >
-                      <Text style={styles.deleteText}>Remove</Text>
+                      <Text style={styles.saveText}>
+                        {saving ? "Saving…" : "Save"}
+                      </Text>
                     </Pressable>
-                  )}
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={saving || !loaded}
-                    onPress={saveLabel}
-                    style={[
-                      styles.save,
-                      (saving || !loaded) && styles.disabled,
-                    ]}
-                  >
-                    <Text style={styles.saveText}>
-                      {saving ? "Saving…" : "Save"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </>
+                  </View>
+                </>
+              )}
             </View>
           </KeyboardAvoidingView>
         </Modal>
@@ -346,13 +464,19 @@ export default function Drip() {
   );
 }
 
-function Countdown({ remaining }: { remaining: number }) {
+function Countdown({
+  remaining,
+  period,
+}: {
+  remaining: number;
+  period: number;
+}) {
   const angle = -remaining * Math.PI * 2 - Math.PI / 2;
   const horizontal = 12 + 11 * Math.cos(angle);
   const vertical = 12 + 11 * Math.sin(angle);
   return (
     <View
-      accessibilityLabel={`Changes in ${Math.ceil(remaining * 30)} seconds`}
+      accessibilityLabel={`Changes in ${Math.ceil(remaining * period)} seconds`}
       style={styles.timer}
     >
       <Svg width={25} height={25} viewBox="0 0 24 24">
@@ -417,6 +541,13 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   rowTitle: { color: colors.text, fontSize: 18, lineHeight: 25 },
+  otp: {
+    color: colors.blue,
+    fontSize: 34,
+    letterSpacing: 5,
+    fontVariant: ["tabular-nums"],
+    marginVertical: 8,
+  },
   code: { flexDirection: "row", alignItems: "center", marginTop: 9 },
   garments: {
     flex: 1,

@@ -18,7 +18,8 @@ import { ClothingItem, pageSize } from "../shared/model";
 import { parseTag } from "../shared/tags";
 import { Store } from "./database";
 import { ComparePhotos } from "./vision";
-import { parseAccount, secretCipher } from "./secrets";
+import { secretCipher } from "./secrets";
+import { parseAccount } from "../shared/totp";
 
 export class VaultError extends Error {
   constructor(

@@ -2,11 +2,15 @@
 
 **Your fit. Your snacks. Your way in.** A deliberately inconvenient TOTP authenticator built with Expo SDK 58, React Native, Expo Router, Express, local Supabase Postgres, and Backboard photo comparison. No OAuth or Google sign-in.
 
-## Simple outfit screen
+## Add an app or service
 
-The default screen follows the supplied dark Authenticator reference: search, flat rows, streetwear clothing images, circular countdowns, and a floating hat-plus button. Three preset orders rotate every 30 seconds, assigning a hoodie, pants, and hat to head, body, and feet. Outfits appear immediately with no enrollment or server connection. Search filters rows; tap a row to rename/remove it, or + to add a label. Labels persist locally on each device.
+Tap the **+ hat** on the main screen to open the camera scanner. In the app or website you want to protect (Microsoft, Google, Entré, etc.), open two-factor authentication settings, choose an authenticator app, and scan its setup QR. If you cannot use the camera, choose **Enter key** and enter the service name, account label, and Base32 setup key.
 
-These three public preset combinations are a visual demo, not TOTP credentials for external accounts. The existing real TOTP vault and camera/HID workflows remain available under **Menu → Vault & scanners**. The original vault still enforces its enrollment and verification requirements.
+Accounts appear with their real TOTP codes and per-service countdowns. Enter that code on the service to finish enrollment. Tap an account to copy its current code, rename the label, or remove it. Search matches service names and account labels. The clothing visuals remain alongside the digits, and your daily fit cutouts still work.
+
+Main-screen accounts work offline and persist on the device: native apps use Expo SecureStore; the web preview uses browser storage. Browser storage is not encrypted, so use disposable accounts for web demos. Old demo outfit labels are left untouched in storage and no longer appear as authenticator accounts. The separate outfit-gated server vault remains under **Menu → Settings → Vault & scanners**.
+
+To verify the companion site, open `http://localhost:3020`, create a demo account, choose **Connect authenticator app**, scan its QR with the + hat, and enter the code displayed for **Entre**. Sign out and back in to test a returning-user challenge.
 
 ## Original vault workflow
 
@@ -78,7 +82,7 @@ This is a **single-user hackathon prototype with real TOTP generation**, not an 
 - Photos compare visual appearance; they cannot prove ownership or distinguish physically identical garments. Exact replayed image bytes are blocked, but transformed images and sophisticated presentation attacks are not cryptographically prevented.
 - Ordinary HID scanners behave like keyboards. The app cannot prove that keystrokes originated from physical scanner hardware.
 - Face ID/fingerprint is a local app gate, not server-verifiable device attestation. The web preview deliberately has no biometric gate.
-- Account secrets use AES-256-GCM with account-bound authenticated data. Codes are server-gated, uncached, and revealed once per challenge. Challenges last at most five minutes and never cross midnight.
+- Original vault account secrets use AES-256-GCM with account-bound authenticated data. Codes are server-gated, uncached, and revealed once per challenge. Challenges last at most five minutes and never cross midnight.
 - The service you log into may accept an already revealed TOTP again within its time window. Threadcheck cannot change that service’s verification policy or revoke a copied code.
 - This local setup permits HTTP for LAN development. Use HTTPS, stronger device enrollment, isolated user ownership, hardened secret storage, and security review before any public deployment.
 - Reference photos remain in the stash. Daily reference snapshots are removed when the next day’s outfit is enrolled. Unlock photos are sent to the comparison service but are not stored in Postgres; hashes are retained with challenge proofs until that daily record is pruned.
@@ -86,6 +90,6 @@ This is a **single-user hackathon prototype with real TOTP generation**, not an 
 
 ## Design
 
-The primary screen uses system typography, background `#131314`, surfaces `#27292B`, and pale blue `#A8C7FA`. Backboard-generated streetwear images replace numerical codes: an ivory graffiti hoodie, indigo carpenter jeans, and a sage embroidered cap. The three assets are bundled locally, so viewing them does not call the API. Generation provenance is in `assets/streetwear/generation.json`; `node scripts/generate-streetwear.mjs hoodie` (or `pants` / `hat`) regenerates one asset using the server-only Backboard key. The original mint-and-white vault remains in the secondary route.
+The primary screen uses system typography, background `#131314`, surfaces `#27292B`, and pale blue `#A8C7FA`. Backboard-generated streetwear images accompany numerical codes: an ivory graffiti hoodie, indigo carpenter jeans, and a sage embroidered cap. The three assets are bundled locally, so viewing them does not call the API. Generation provenance is in `assets/streetwear/generation.json`; `node scripts/generate-streetwear.mjs hoodie` (or `pants` / `hat`) regenerates one asset using the server-only Backboard key. The original mint-and-white vault remains in the secondary route.
 
 Screenshots in `docs/` show local test data, not linked external accounts. `docs/drip-phone.png` shows the current primary screen; older screenshots document the original vault.

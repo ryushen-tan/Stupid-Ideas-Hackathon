@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { AuthenticatorAccount } from "../../shared/authenticator";
-import { StoreSession } from "../../shared/model";
-import { request } from "../api";
+import { z } from "zod";
+import { accountInputSchema } from "../../shared/authenticator";
 import { CameraScanner } from "../components/CameraScanner";
 import { Button, common, Field, Notice } from "../components/UI";
 
 export function AccountForm({
-  session,
+  onAdd,
   onSaved,
 }: {
-  session: StoreSession;
+  onAdd: (input: z.infer<typeof accountInputSchema>) => Promise<void>;
   onSaved: () => void;
 }) {
   const [mode, setMode] = useState<"qr" | "manual">("qr");
@@ -24,14 +23,13 @@ export function AccountForm({
     setBusy(true);
     setError("");
     try {
-      await request<AuthenticatorAccount>(session, "/vault/accounts", {
-        method: "POST",
-        body: JSON.stringify(
+      await onAdd(
+        accountInputSchema.parse(
           uri
             ? { method: "qr", uri }
             : { method: "manual", issuer, label, secret },
         ),
-      });
+      );
       setSecret("");
       onSaved();
     } catch (failure) {
@@ -43,7 +41,7 @@ export function AccountForm({
   }
   return (
     <View style={common.stack}>
-      <Text style={common.title}>Give an account a dress code.</Text>
+      <Text style={common.title}>Add app or service</Text>
       <Text style={common.subtitle}>
         Open two-factor authentication in the service you want to protect.
         Choose an authenticator app, then scan its setup QR.
@@ -69,16 +67,20 @@ export function AccountForm({
         />
       </View>
       {busy ? (
-        <Notice>Saving your encrypted authenticator key…</Notice>
+        <Notice>Saving your authenticator…</Notice>
       ) : mode === "qr" ? (
-        <CameraScanner key={cameraRevision} onCode={(uri) => void save(uri)} />
+        <CameraScanner
+          key={cameraRevision}
+          purpose="account"
+          onCode={(uri) => void save(uri)}
+        />
       ) : (
         <>
           <Field
             label="Service name"
             value={issuer}
             onChangeText={setIssuer}
-            placeholder="GitHub"
+            placeholder="Microsoft, Google, Entre…"
             maxLength={80}
           />
           <Field
@@ -113,8 +115,8 @@ export function AccountForm({
         </>
       )}
       <Notice>
-        Keep the service’s recovery codes somewhere safe. Your outfit and snacks
-        unlock the normal login code that service expects.
+        Keep the service’s recovery codes somewhere safe. Use the current code
+        to finish setup on that service.
       </Notice>
     </View>
   );

@@ -219,7 +219,7 @@ export function AuthPanel() {
           {enrollment ? <>
             <div className="mb-6 flex items-center gap-5">
               <div className="qr-frame shrink-0"><img src={enrollment.totp.qr_code} alt="Scan this QR code with your authenticator app" width={160} height={160} /></div>
-              <div className="text-xs leading-5"><span className="micro text-[#84917c]">01 / CONNECT</span><p className="mt-2">Open your authenticator app.<br />Add an account.<br />Scan this QR code.</p></div>
+              <div className="text-xs leading-5"><span className="micro text-[#84917c]">01 / CONNECT</span><p className="mt-2">Open Drip Authenticator.<br />Tap the + hat to add a service.<br />Scan this QR code.</p></div>
             </div>
             <details className="mb-6 text-xs text-[#75806e]"><summary className="cursor-pointer">Can’t scan? Use a setup key</summary><div className="mt-3 rounded border border-[#d8dcd3] p-3"><code className="break-all text-[#344c3d]">{enrollment.totp.secret}</code><button onClick={copySecret} type="button" className="mt-3 flex items-center gap-2">{copied ? <Check size={13} /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy setup key'}</button></div></details>
           </> : <button className="primary mb-6" onClick={enroll} disabled={busy}>{busy ? 'Creating your QR code…' : 'Connect authenticator app'}<ArrowUpRight size={17} /></button>}
