@@ -27,6 +27,22 @@ Use **Menu → Browser extension** to pair Chrome or Edge and approve website re
 
 The browser is explicitly a preview without native biometrics. Native biometric confirmation happens locally; the server never receives biometric templates or face photographs. Only garment images are sent to Backboard. Images containing people or worn garments are instructed to fail the outfit check.
 
+## Hosted deployment
+
+The web app and API are hosted together at **https://drip-authenticator.vercel.app** in Vercel project **ryushens-projects/drip-authenticator**. Vercel uses `threadcheck` as the repository root directory, Node 24, and `npm run build:vercel`. Expo exports the web UI, and esbuild bundles the Express server for the Node function in `api/index.mjs`.
+
+The dedicated hosted Supabase project is **Drip Authenticator** (`qeeupklbrpawcfwrjgym`). Its private `threadcheck` schema uses the same migrations as local development. Production credentials live in Vercel environment variables: `DATABASE_URL`, `DATABASE_SSL_CA`, `PAIRING_CODE`, `VAULT_ENCRYPTION_KEY`, `BACKBOARD_API_KEY`, and `VAULT_TIMEZONE`. The database uses the session pooler with its CA certificate and hostname verification. Keep `BROWSER_DEMO_AUTO_CONNECT` disabled on the public deployment.
+
+The production website calls its own origin. Set `EXPO_PUBLIC_API_URL=https://drip-authenticator.vercel.app` in local Expo configuration to use this backend from a phone. When moving an existing vault with its sessions and encryption key, `EXPO_PUBLIC_PREVIOUS_API_URL` can name the old server address so the app preserves its pairing. These public variables must never contain credentials. Expo Go still requires a running Metro development server; the hosted website and API do not.
+
+Deploy from the repository root after linking the Vercel project:
+
+```sh
+npx vercel@latest deploy --prod --scope ryushens-projects
+```
+
+Server requests have a five-minute execution limit. Camera uploads are resized to a 1,200-pixel longest edge before sending. The companion login demo remains a separate local app.
+
 ## Run locally
 
 Requires Node 24+, Docker, and the Supabase CLI. Run from this directory:

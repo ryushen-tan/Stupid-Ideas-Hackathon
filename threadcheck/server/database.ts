@@ -5,12 +5,20 @@ import { sampleItems } from "../shared/samples";
 
 types.setTypeParser(20, Number);
 
-export function openDatabase(connectionString: string, schema = "threadcheck") {
+export function openDatabase(
+  connectionString: string,
+  schema = "threadcheck",
+  certificateAuthority?: string,
+) {
   if (!/^[a-z_][a-z0-9_]*$/.test(schema))
     throw new Error("Invalid database schema.");
   const database = new Pool({
     connectionString,
     options: `-c search_path=${schema}`,
+    ssl: certificateAuthority
+      ? { ca: certificateAuthority, rejectUnauthorized: true }
+      : undefined,
+    connectionTimeoutMillis: 15_000,
     max: 8,
   });
   async function saveItem(item: ClothingItem) {

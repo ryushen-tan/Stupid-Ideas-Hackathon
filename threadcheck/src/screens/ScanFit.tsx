@@ -4,7 +4,6 @@ import {
   AppState,
   Image,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +22,7 @@ import {
 import { StoreSession } from "../../shared/model";
 import { defaultServerUrl, request } from "../api";
 import { clearSession, loadSession, saveSession } from "../session";
+import { preparePhoto } from "../photos";
 
 export function ScanFit({
   onSave,
@@ -107,14 +107,8 @@ export function ScanFit({
       if (!camera.current) throw new Error("The camera is not ready yet.");
       const result = await camera.current.takePictureAsync({
         quality: 0.5,
-        base64: true,
       });
-      if (!result.base64)
-        throw new Error("No photo was captured. Please try again.");
-      const image =
-        Platform.OS === "web"
-          ? result.uri
-          : `data:image/jpeg;base64,${result.base64}`;
+      const image = await preparePhoto(result);
       const day = localDay();
       setPhoto(image);
       setCapturedDay(day);

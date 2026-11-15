@@ -1,0 +1,15 @@
+.git/
+.vercel/
+supabase/.temp/
+login-demo/
+browser-extension/
+threadcheck/.env*
+threadcheck/server/.env
+threadcheck/.vercel/
+threadcheck/artifacts/
+threadcheck/docs/
+threadcheck/dist*/
+threadcheck/server-dist/
+threadcheck/tests/
+threadcheck/.expo/
+**/node_modules/

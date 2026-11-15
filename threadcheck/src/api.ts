@@ -5,7 +5,9 @@ import { ApiError, StoreSession } from "../shared/model";
 export const defaultServerUrl =
   process.env.EXPO_PUBLIC_API_URL ??
   (Platform.OS === "web"
-    ? `http://${globalThis.location.hostname}:4310`
+    ? __DEV__
+      ? `http://${globalThis.location.hostname}:4310`
+      : globalThis.location.origin
     : `http://${Constants.expoConfig?.hostUri?.split(":")[0] ?? "localhost"}:4310`);
 
 export async function request<T>(
@@ -36,7 +38,7 @@ export async function request<T>(
     throw new Error(
       error instanceof Error && error.name === "TimeoutError"
         ? "The store took too long to respond. Please retry."
-        : "Can’t reach your store. Check the server address and that both devices are on the same Wi-Fi.",
+        : "Can’t reach your vault. Check your internet connection and the server address.",
     );
   }
   if (!response.ok) {

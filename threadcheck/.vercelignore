@@ -1,0 +1,9 @@
+.env*
+server/.env
+artifacts/
+docs/
+dist*/
+server-dist/
+tests/
+.expo/
+node_modules/

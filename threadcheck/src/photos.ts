@@ -19,9 +19,17 @@ export async function pickPhoto(camera: boolean): Promise<string | null> {
         quality: 0.8,
       });
   if (result.canceled) return null;
-  const photo = result.assets[0];
+  return preparePhoto(result.assets[0]);
+}
+
+export async function preparePhoto(
+  photo: Pick<ImagePicker.ImagePickerAsset, "uri" | "width" | "height">,
+): Promise<string> {
   const context = ImageManipulator.manipulate(photo.uri);
-  if (photo.width > 1200) context.resize({ width: 1200 });
+  if (Math.max(photo.width, photo.height) > 1200)
+    context.resize(
+      photo.width >= photo.height ? { width: 1200 } : { height: 1200 },
+    );
   const rendered = await context.renderAsync();
   const saved = await rendered.saveAsync({
     format: SaveFormat.JPEG,
