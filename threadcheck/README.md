@@ -6,11 +6,11 @@
 
 Tap the **+ hat** on the main screen to open the camera scanner. In the app or website you want to protect (Microsoft, Google, Entré, etc.), open two-factor authentication settings, choose an authenticator app, and scan its setup QR. If you cannot use the camera, choose **Enter key** and enter the service name, account label, and Base32 setup key.
 
-Accounts appear with their real TOTP codes and per-service countdowns. Enter that code on the service to finish enrollment. Tap an account to copy its current code, rename the label, or remove it. Search matches service names and account labels. The clothing visuals remain alongside the digits, and your daily fit cutouts still work.
+Accounts show clothing combinations vertically on a mannequin, with head, body, and feet labels and per-service countdowns. Numeric TOTP codes are used internally to select the arrangement but are never rendered or offered for copying on the main screen or account details. Tap an account to rename its label or remove it. Search matches service names and account labels, and daily fit cutouts replace the bundled clothing images.
 
 Main-screen accounts work offline and persist on the device: native apps use Expo SecureStore; the web preview uses browser storage. Browser storage is not encrypted, so use disposable accounts for web demos. Old demo outfit labels are left untouched in storage and no longer appear as authenticator accounts. The separate outfit-gated server vault remains under **Menu → Settings → Vault & scanners**.
 
-To verify the companion site, open `http://localhost:3020`, create a demo account, choose **Connect authenticator app**, scan its QR with the + hat, and enter the code displayed for **Entre**. Sign out and back in to test a returning-user challenge.
+The companion site at `http://localhost:3020` currently expects numerical TOTP entry. The clothing-only main screen does not complete that verification flow; a clothing-verification integration is still needed. The separate server vault retains its gated code-reveal flow.
 
 ## Original vault workflow
 

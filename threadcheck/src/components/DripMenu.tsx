@@ -158,12 +158,12 @@ export function DripMenu({
                 {page === "how" && (
                   <>
                     <Text style={styles.body}>
-                      Read each outfit from left to right: head, body, feet.
+                      Read each outfit from top to bottom: head, body, feet.
                     </Text>
                     <Text style={styles.body}>
-                      Each service has its own real verification code. The
-                      clothing arrangement follows that code; use the digits
-                      when signing in.
+                      The mannequin shows which clothing item goes in each
+                      position. Follow the current arrangement before the
+                      timer resets.
                     </Text>
                     <Text style={styles.body}>
                       Scan your fit each morning. Review the cutouts to use your
@@ -247,8 +247,8 @@ export function DripMenu({
                       catch up to the current combination.
                     </Text>
                     <Text style={styles.secondary}>
-                      Tap a service to copy its code, change its account label,
-                      or remove it. The separate outfit-gated vault is under
+                      Tap a service to change its account label or remove it.
+                      The separate outfit-gated vault is under
                       Settings → Vault & scanners.
                     </Text>
                   </>

@@ -31,7 +31,6 @@ import { Garment } from "../components/Garment";
 import { AccountForm } from "./AccountForm";
 import { loadAccounts, saveAccounts, LocalAccount } from "../accounts";
 import { accountCode, parseAccount } from "../../shared/totp";
-import * as Clipboard from "expo-clipboard";
 
 const streetwear: Record<
   Outfit["head"],
@@ -232,13 +231,6 @@ export default function Drip() {
               >
                 <Text style={styles.rowTitle}>{row.issuer}</Text>
                 <Text style={styles.note}>{row.label}</Text>
-                <Text
-                  selectable
-                  accessibilityLabel={`Authentication code for ${row.issuer}`}
-                  style={styles.otp}
-                >
-                  {code}
-                </Text>
                 <View style={styles.code}>
                   <View style={styles.garments}>
                     <Svg
@@ -393,30 +385,6 @@ export default function Drip() {
                 </ScrollView>
               ) : (
                 <>
-                  <Text selectable style={styles.otp}>
-                    {accountCode(sheet.row, timestamp)}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    style={styles.action}
-                    onPress={async () => {
-                      try {
-                        await Clipboard.setStringAsync(
-                          accountCode(sheet.row, Date.now()),
-                        );
-                        setError("");
-                        setSheet(null);
-                      } catch (failure) {
-                        setError(
-                          failure instanceof Error
-                            ? failure.message
-                            : "Could not copy the code.",
-                        );
-                      }
-                    }}
-                  >
-                    <Text style={styles.linkText}>Copy code</Text>
-                  </Pressable>
                   <TextInput
                     accessibilityLabel="Account label"
                     placeholder="Account label"
@@ -432,10 +400,6 @@ export default function Drip() {
                     returnKeyType="done"
                     selectionColor={colors.blue}
                   />
-                  <Text style={styles.note}>
-                    Enter the current code on the service to finish setup or
-                    sign in.
-                  </Text>
                   {!!error && (
                     <Text accessibilityRole="alert" style={styles.error}>
                       {error}
@@ -557,13 +521,6 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   rowTitle: { color: colors.text, fontSize: 18, lineHeight: 25 },
-  otp: {
-    color: colors.blue,
-    fontSize: 34,
-    letterSpacing: 5,
-    fontVariant: ["tabular-nums"],
-    marginVertical: 8,
-  },
   code: { flexDirection: "row", alignItems: "center", marginTop: 9 },
   garments: {
     flex: 1,
