@@ -59,7 +59,7 @@ test.afterAll(async () => {
   if (profile) await rm(profile, { recursive: true, force: true });
 });
 
-test("demo auto-connects to Drip and fills real Next.js MFA after three clothing scans", async ({
+test("demo auto-connects and fills real Next.js MFA after scanning the same pants tag three times", async ({
   request,
 }) => {
   const configuration = JSON.parse(
@@ -190,7 +190,7 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
     for (let index = 0; index < 3; index++) {
       await expect(app.getByText(`${index} of 3 scanned`)).toBeVisible();
       await expect(scanner).toBeFocused();
-      await app.keyboard.type(Object.values(barcodes)[index]);
+      await app.keyboard.type(barcodes.Pants);
       await app.keyboard.press("Enter");
       if (index < 2) await expect(codeFieldBeforeApproval).toHaveValue("");
       if (index === 0) {

@@ -285,14 +285,14 @@ export function browserBridge(
           422,
           "Wrong item. Scan one of your linked clothes.",
         );
-      if (current.matchedPlacements.includes(placement))
+      if (!demoAutoConnect && current.matchedPlacements.includes(placement))
         throw new VaultError(
           422,
           "Already scanned that item. Scan another item.",
         );
       const garment = outfits[setup.outfitIndex][placement];
       const scannedTag = heightTag(rawCode);
-      if (scannedTag) {
+      if (scannedTag && !demoAutoConnect) {
         const problem = heightProblem(garment, scannedTag.heightCm, placement);
         if (problem) throw new VaultError(422, problem);
       }
@@ -301,8 +301,8 @@ export function browserBridge(
         matchedPlacements: BrowserRequest["matchedPlacements"];
         status: BrowserRequest["status"];
       }>(
-        `UPDATE browser_requests SET "matchedPlacements"=array_append("matchedPlacements",$2),status=CASE WHEN "matchedCount"=2 THEN 'verified' ELSE 'prepared' END WHERE id=$1 AND status='prepared' AND NOT ($2=ANY("matchedPlacements")) AND "expiresAt">$3 RETURNING "matchedCount","matchedPlacements",status`,
-        [current.id, placement, now()],
+        `UPDATE browser_requests SET "matchedPlacements"=array_append("matchedPlacements",$2),status=CASE WHEN "matchedCount"=2 THEN 'verified' ELSE 'prepared' END WHERE id=$1 AND status='prepared' AND ($4 OR NOT ($2=ANY("matchedPlacements"))) AND "expiresAt">$3 RETURNING "matchedCount","matchedPlacements",status`,
+        [current.id, placement, now(), demoAutoConnect],
       );
       if (!updated.rows[0])
         throw new VaultError(

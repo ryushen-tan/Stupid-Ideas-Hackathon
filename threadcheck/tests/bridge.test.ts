@@ -200,3 +200,41 @@ test("expiry, cancellation, and revocation stop code delivery", async () => {
     .auth(token, { type: "bearer" })
     .expect(401);
 });
+
+test("demo accepts the same linked tag three times but blocks early completion", async () => {
+  const demoApp = createApp(
+    fixture.store,
+    "654321",
+    null,
+    vaultOptions,
+    null,
+    true,
+  );
+  const browser = await pair();
+  const id = await createRequest(browser);
+  const demoSetup = {
+    ...setup,
+    barcodes: { ...setup.barcodes, top: "10000001" },
+  };
+  await phonePost(id, "prepare").send(demoSetup).expect(200);
+  for (let count = 1; count <= 3; count++) {
+    const scanned = await supertest(demoApp)
+      .post(`/api/bridge/requests/${id}/proof`)
+      .auth(phone, { type: "bearer" })
+      .send({ code: demoSetup.barcodes.top })
+      .expect(200);
+    assert.equal(scanned.body.matchedCount, count);
+    assert.equal(scanned.body.status, count === 3 ? "verified" : "prepared");
+    if (count < 3)
+      await supertest(demoApp)
+        .post(`/api/bridge/requests/${id}/complete`)
+        .auth(phone, { type: "bearer" })
+        .send({ code: "123456", validUntil: Date.now() + 30000 })
+        .expect(409);
+  }
+  await supertest(demoApp)
+    .post(`/api/bridge/requests/${id}/complete`)
+    .auth(phone, { type: "bearer" })
+    .send({ code: "123456", validUntil: Date.now() + 30000 })
+    .expect(200);
+});
