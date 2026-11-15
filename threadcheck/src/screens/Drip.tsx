@@ -53,7 +53,7 @@ type Sheet =
   | { kind: "menu" }
   | { kind: "scan" }
   | { kind: "add" }
-  | { kind: "row"; row: LocalAccount };
+  | { kind: "row" | "delete"; row: LocalAccount };
 
 export default function Drip() {
   const [rows, setRows] = useState<LocalAccount[]>([]);
@@ -228,24 +228,51 @@ export default function Drip() {
             const remaining =
               1 - (timestamp % (row.period * 1000)) / (row.period * 1000);
             return (
-              <Pressable
-                key={row.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${row.issuer}: ${row.label}. View account.`}
-                onPress={() => {
-                  setLabel(row.label);
-                  setError("");
-                  setSheet({ kind: "row", row });
-                }}
-                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              >
-                <Text style={styles.rowTitle}>{row.issuer}</Text>
-                <Text style={styles.note}>{row.label}</Text>
-                <View style={styles.code}>
-                  <OutfitMannequin outfit={outfit} clothing={clothing} />
-                  <Countdown remaining={remaining} period={row.period} />
-                </View>
-              </Pressable>
+              <View key={row.id} style={styles.row}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${row.issuer}: ${row.label}. View account.`}
+                  onPress={() => {
+                    setLabel(row.label);
+                    setError("");
+                    setSheet({ kind: "row", row });
+                  }}
+                  style={({ pressed }) => pressed && styles.pressed}
+                >
+                  <View style={styles.rowHeading}>
+                    <Text style={styles.rowTitle}>{row.issuer}</Text>
+                    <Text style={styles.note}>{row.label}</Text>
+                  </View>
+                  <View style={styles.code}>
+                    <OutfitMannequin outfit={outfit} clothing={clothing} />
+                    <Countdown remaining={remaining} period={row.period} />
+                  </View>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${row.issuer}: ${row.label}`}
+                  onPress={() => {
+                    setError("");
+                    setSheet({ kind: "delete", row });
+                  }}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    styles.rowDelete,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Svg width={22} height={22} viewBox="0 0 24 24">
+                    <Path
+                      d="M4 7H20M9 7V4H15V7M6 7L7 21H17L18 7M10 11V17M14 11V17"
+                      stroke={colors.muted}
+                      strokeWidth={1.7}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </Svg>
+                </Pressable>
+              </View>
             );
           })}
           {!visibleRows.length && (
@@ -293,7 +320,9 @@ export default function Drip() {
         <Modal
           transparent
           animationType="fade"
-          onRequestClose={() => setSheet(null)}
+          onRequestClose={() => {
+            if (!saving) setSheet(null);
+          }}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -303,6 +332,7 @@ export default function Drip() {
               accessibilityLabel="Close dialog"
               accessibilityRole="button"
               style={StyleSheet.absoluteFill}
+              disabled={saving}
               onPress={() => setSheet(null)}
             />
             <View
@@ -319,11 +349,16 @@ export default function Drip() {
                 {sheet.kind === "add" ? (
                   <View style={{ flex: 1 }} />
                 ) : (
-                  <Text style={styles.sheetTitle}>{sheet.row.issuer}</Text>
+                  <Text style={styles.sheetTitle}>
+                    {sheet.kind === "delete"
+                      ? "Delete service?"
+                      : sheet.row.issuer}
+                  </Text>
                 )}
                 <Pressable
                   accessibilityLabel="Close dialog"
                   accessibilityRole="button"
+                  disabled={saving}
                   onPress={() => setSheet(null)}
                   style={styles.iconButton}
                 >
@@ -362,6 +397,47 @@ export default function Drip() {
                     onSaved={() => setSheet(null)}
                   />
                 </ScrollView>
+              ) : sheet.kind === "delete" ? (
+                <>
+                  <Text style={styles.description}>
+                    Remove {sheet.row.issuer} ({sheet.row.label}) from this
+                    device? This won’t turn off two-factor authentication for
+                    that service.
+                  </Text>
+                  {!!error && (
+                    <Text accessibilityRole="alert" style={styles.error}>
+                      {error}
+                    </Text>
+                  )}
+                  <View style={styles.actions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={saving}
+                      onPress={() => setSheet(null)}
+                      style={styles.action}
+                    >
+                      <Text style={styles.linkText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={saving || !loaded}
+                      onPress={() =>
+                        void saveRows(
+                          rows.filter((row) => row.id !== sheet.row.id),
+                        )
+                      }
+                      style={[
+                        styles.save,
+                        styles.deleteButton,
+                        (saving || !loaded) && styles.disabled,
+                      ]}
+                    >
+                      <Text style={styles.saveText}>
+                        {saving ? "Deleting…" : "Delete service"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
               ) : (
                 <>
                   <TextInput
@@ -389,14 +465,13 @@ export default function Drip() {
                       <Pressable
                         accessibilityRole="button"
                         disabled={saving || !loaded}
-                        onPress={() =>
-                          void saveRows(
-                            rows.filter((row) => row.id !== sheet.row.id),
-                          )
-                        }
+                        onPress={() => {
+                          setError("");
+                          setSheet({ kind: "delete", row: sheet.row });
+                        }}
                         style={styles.action}
                       >
-                        <Text style={styles.deleteText}>Remove</Text>
+                        <Text style={styles.deleteText}>Delete service</Text>
                       </Pressable>
                     )}
                     <Pressable
@@ -499,6 +574,8 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 18,
   },
+  rowHeading: { paddingRight: 48 },
+  rowDelete: { position: "absolute", top: 14, right: 0 },
   rowTitle: { color: colors.text, fontSize: 18, lineHeight: 25 },
   code: { flexDirection: "row", alignItems: "center", marginTop: 9 },
   timer: { marginLeft: "auto", paddingRight: 10 },
@@ -571,6 +648,7 @@ const styles = StyleSheet.create({
   },
   action: { padding: 14 },
   deleteText: { color: "#FFB4AB", fontSize: 15 },
+  deleteButton: { backgroundColor: "#FFB4AB" },
   save: {
     paddingVertical: 14,
     paddingHorizontal: 24,
