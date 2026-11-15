@@ -2,9 +2,32 @@
 
 A fictional login experience inspired by [Oui Will](https://www.awwwards.com/sites/oui-will-2), built with Next.js App Router, TypeScript, Tailwind CSS, and Supabase Auth. The architectural scene is original SVG/CSS with a floating metallic ring; no external image or font requests are needed.
 
+## Hosted site
+
+**https://entre-login.vercel.app**
+
+Deployed with Vercel CLI to `ryushens-projects/entre-login` using Next.js and Node 24. Authentication runs on the dedicated Supabase project `ecsscgoijhglzontagzq` (**Entre Login**, in **Drip Authenticator**), independently of the laptop and the authenticator app’s backend.
+
+Google sign-in returns to the hosted site. Local and hosted authenticator enrollments are separate, so connect your authenticator once on the hosted site even if you already set it up locally.
+
+Production uses Vercel’s `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Google’s secret is configured in Supabase Auth, not Vercel or browser code. `.vercelignore` excludes local environment files from uploaded source.
+
+- Production origin: `https://entre-login.vercel.app`
+- Google callback: `https://ecsscgoijhglzontagzq.supabase.co/auth/v1/callback`
+- Hosted auth configuration: `deploy/supabase/config.toml`
+
+Redeploy from `login-demo`:
+
+```sh
+npx --yes vercel@65.16.0 project inspect --non-interactive --scope ryushens-projects
+npx --yes vercel@65.16.0 deploy --prod --yes --scope ryushens-projects
+```
+
+Deployment verification covered the actual Google OAuth callback in the browser and hosted QR enrollment, incorrect-code rejection, AAL2 endpoint access, and sign-out using a temporary account that was deleted after testing.
+
 ## Google OAuth configuration
 
-This workspace is configured with the dedicated **Entre local login** web client in your existing Google Cloud project `phoney-auth`. The Google consent screen uses that project’s shared **Ryuo Studio** branding. Only basic profile and email access are requested.
+This workspace is configured with the dedicated **Entre login** web client in your existing Google Cloud project `phoney-auth`. The Google consent screen uses that project’s shared **Ryuo Studio** branding. Only basic profile and email access are requested.
 
 The client secret is stored in ignored `login-demo/.env`, never in public frontend variables. For a fresh checkout, put these values in `login-demo/.env` before running setup:
 
@@ -18,7 +41,7 @@ The Google web client must allow:
 - JavaScript origin: `http://localhost:3020`
 - Redirect URI: `http://127.0.0.1:56421/auth/v1/callback`
 
-After changing these values or the Supabase configuration, run `supabase stop` followed by `npm run setup:local` from `login-demo`. Existing local database contents are preserved. Public deployment needs its own allowed URLs and a reachable Supabase instance.
+After changing these values or the Supabase configuration, run `supabase stop` followed by `npm run setup:local` from `login-demo`. Existing local database contents are preserved. The production origin and hosted Supabase callback below are also configured on this Google client.
 
 ## Run
 
@@ -63,7 +86,7 @@ The protected endpoint validates the signed JWT with Supabase, requires `aal2`, 
 
 ## Scope
 
-This is a local hackathon demo, with no public deployment, recovery-code flow, or password reset. Create another demo account if you lose its authenticator. To use hosted Supabase later, configure `.env.local` using `.env.example`, enable TOTP MFA, and configure email confirmation and redirect URLs for that project. The local integration test intentionally refuses remote hosts.
+This is a hackathon demo with local and hosted environments. It does not include recovery codes or password reset. Create another demo account if you lose its authenticator. To use hosted Supabase later, configure `.env.local` using `.env.example`, enable TOTP MFA, and configure email confirmation and redirect URLs for that project. The local integration test intentionally refuses remote hosts.
 
 To stop this demo’s database without affecting your authenticator app:
 

@@ -1,0 +1,20 @@
+project_id = "entre-hosted"
+
+[auth]
+site_url = "https://entre-login.vercel.app"
+additional_redirect_urls = ["https://entre-login.vercel.app"]
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enabled = true
+enable_confirmations = true
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
