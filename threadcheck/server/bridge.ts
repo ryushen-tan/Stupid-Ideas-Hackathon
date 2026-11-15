@@ -10,6 +10,7 @@ import {
   garmentSlot,
 } from "../shared/bridge";
 import { outfits, placements } from "../shared/drip";
+import { heightProblem, heightTag } from "../shared/height-tags";
 import { parseTag } from "../shared/tags";
 import { Store } from "./database";
 import { secretCipher } from "./secrets";
@@ -264,6 +265,7 @@ export function browserBridge(
       const { code } = z
         .object({ code: clothingBarcodeSchema })
         .parse(request.body);
+      const rawCode = String((request.body as { code: string }).code).trim();
       const current: BrowserRequest = response.locals.browserRequest;
       if (!current.setup || current.status !== "prepared")
         throw new VaultError(
@@ -272,12 +274,26 @@ export function browserBridge(
         );
       const placement = placements[current.matchedCount];
       const garment = outfits[current.setup.outfitIndex][placement];
-      const expected = parseTag(current.setup.barcodes[garmentSlot[garment]]);
-      if (code.barcode !== expected.barcode || code.serial !== expected.serial)
-        throw new VaultError(
-          422,
-          `Wrong item. Scan the clothing shown at ${placement}.`,
-        );
+      const linkedRaw = current.setup.barcodes[garmentSlot[garment]];
+      const scannedTag = heightTag(rawCode);
+      const linkedTag = heightTag(linkedRaw);
+      if (scannedTag && linkedTag) {
+        // Hardware tag: same garment ID, and its measured height must suit the placement
+        if (scannedTag.id !== linkedTag.id)
+          throw new VaultError(
+            422,
+            `Wrong item. Scan the clothing shown at ${placement}.`,
+          );
+        const problem = heightProblem(garment, scannedTag.heightCm, placement);
+        if (problem) throw new VaultError(422, problem);
+      } else {
+        const expected = parseTag(linkedRaw);
+        if (code.barcode !== expected.barcode || code.serial !== expected.serial)
+          throw new VaultError(
+            422,
+            `Wrong item. Scan the clothing shown at ${placement}.`,
+          );
+      }
       const updated = await store.database.query<{
         matchedCount: number;
         status: BrowserRequest["status"];

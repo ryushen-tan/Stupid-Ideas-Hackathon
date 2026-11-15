@@ -1,3 +1,3 @@
 # Third unit (Pico 3). Copy to the Pico as role.py:  mpremote cp role_hat.py :role.py
 GARMENT = "hat"
-BARCODE = "30000031"   # even-length digits -> compact Code128-C barcode
+PREFIX = "30000"      # barcode = 30000 + height in cm (3 digits), e.g. 30000046

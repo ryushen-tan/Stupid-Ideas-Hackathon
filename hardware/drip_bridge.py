@@ -10,6 +10,7 @@ Reads Drip's local Supabase database directly (local demo only). Run with Drip a
 import glob
 import os
 import subprocess
+import sys
 import threading
 import time
 
@@ -105,12 +106,17 @@ def refresh(tags):
 
 
 def main():
+    # Test mode: python3 drip_bridge.py --outfit 0|1|2  forces one of Drip's arrangements (no login needed)
+    forced = int(sys.argv[sys.argv.index("--outfit") + 1]) if "--outfit" in sys.argv else None
     tags = {}
     last, last_print = None, 0
     while True:
         refresh(tags)
         try:
-            zones = current_zones()
+            if forced is not None:
+                zones = {garment: place for place, garment in OUTFITS[forced].items()}
+            else:
+                zones = current_zones()
         except Exception as e:
             print("DB read failed:", e, flush=True)
             zones = None

@@ -1,16 +1,14 @@
-# Drip clothing tag -- Pico firmware.
-# Each Pico is one garment's "tag": it shows that garment's barcode on the e-ink, but ONLY while
-# the garment is at the height Drip's current arrangement asks for. The A010 depth sensor rides
-# on the garment pointing at the floor, so its reading is the garment's height.
+# Drip clothing tag -- Pico firmware. Runs entirely on the Pico: no laptop, no wireless.
+# Each Pico is one garment's "tag". It measures its own height with the A010 depth sensor
+# (pointing down at the floor) and builds its own barcode: the LAST 3 DIGITS ARE THE HEIGHT IN CM.
+# Scanning the tag in Drip carries the height into the app, which checks it against where the
+# arrangement wants that garment (threadcheck/shared/height-tags.ts).
 #
-#   role.py (one per device)  GARMENT = "pants" (Pico 1) / "hoodie" (Pico 2); ALWAYS_SHOW option
-#   config.py                 height zones + e-ink refresh limit
+#   role.py (one per device)  GARMENT, PREFIX (5 digits: hoodie 10000, pants 20000, hat 30000)
+#   config.py                 smoothing + e-ink refresh limit
+#   barcode = PREFIX + height cm (000-998), or PREFIX + 999 when there's no working sensor
 #
-# USB serial lines:
-#   laptop -> pico   "ZONES hoodie=head pants=body hat=feet"   from drip_bridge.py; "ZONES none"
-#   pico -> laptop   "ROLE <garment> <barcode>"   at boot
-#   pico -> laptop   "DIST <mm>"                  garment height, once a second
-#   pico -> laptop   "STATE barcode|hidden ..."   whenever the screen changes
+# USB serial (optional, for watch_heights.py):  "ROLE ..", "DIST <mm>", "STATE <barcode>"
 import select
 import sys
 import time
@@ -22,10 +20,11 @@ import config
 import eink_seeed as E
 import role
 
+NO_SENSOR = 999
 epd = E.EInk(config.UART_ID, config.PIN_TX, config.PIN_RX)
 try:
     import a010
-    sensor = a010.A010()
+    sensor = None if getattr(role, "ALWAYS_SHOW", False) else a010.A010()
 except Exception as e:  # sensor not wired -> carry on without it
     print("A010: not available:", e)
     sensor = None
@@ -34,7 +33,6 @@ led = Pin(25, Pin.OUT)  # blinks while the loop runs (handy on battery, no lapto
 bbuf, black = E.new_canvas()
 rbuf, red = E.new_canvas()
 LABEL = role.GARMENT.upper()
-ALWAYS_SHOW = getattr(role, "ALWAYS_SHOW", False)  # True = ignore the sensor, barcode stays up
 
 
 def big_text(fb, s, x, y, scale=2, c=1):
@@ -57,97 +55,87 @@ def centered(fb, s, y, scale=1, c=1):
         big_text(fb, s, x, y, scale, c)
 
 
-def clear():
+def screen(height_cm):
+    code = "%s%03d" % (role.PREFIX, height_cm)
     black.fill(0)
     red.fill(0)
-
-
-def screen_barcode():
-    clear()
     red.fill_rect(0, 0, E.W, 11, 1)
     centered(red, "DRIP TAG: " + LABEL, 2, 1, 0)  # white text cut out of red
-    w = code128.width_modules(code128.encode(role.BARCODE)) * 2
-    code128.draw(black, role.BARCODE, (E.W - w) // 2, 15, 52, module=2)
-    centered(black, role.BARCODE, 70, 2)
-    centered(red, "scan me now", 93)
-    epd.show(bbuf, rbuf)
-
-
-def screen_hidden():
-    clear()
-    red.fill_rect(0, 0, E.W, 11, 1)
-    centered(red, "DRIP TAG: " + LABEL, 2, 1, 0)
-    centered(black, LABEL, 30, 3)
-    centered(black, "not in place", 64, 2)
-    centered(red, "wear me where Drip says", 93)
-    epd.show(bbuf, rbuf)
+    w = code128.width_modules(code128.encode(code)) * 2
+    code128.draw(black, code, (E.W - w) // 2, 15, 52, module=2)
+    centered(black, code, 70, 2)
+    centered(red, "no height sensor" if height_cm == NO_SENSOR else "height %d cm" % height_cm, 93)
+    return code, epd.show(bbuf, rbuf)
 
 
 poll = select.poll()
 poll.register(sys.stdin, select.POLLIN)
 
 
-zone = None  # where Drip wants this garment right now: "head" / "body" / "feet" / None
-
-
-def read_stdin():
-    global zone
+def drain_stdin():  # the laptop may send old bridge commands; not needed any more
     while poll.poll(0):
-        line = sys.stdin.readline().strip()
-        if line.startswith("ZONES"):
-            want = None
-            for part in line.split()[1:]:
-                k, _, v = part.partition("=")
-                if k == role.GARMENT and v in config.ZONES_MM:
-                    want = v
-            if want != zone:
-                zone = want
-                print("ZONE", zone)
+        sys.stdin.readline()
 
 
 def elapsed(t):
     return time.ticks_diff(time.ticks_ms(), t)
 
 
-print("ROLE", role.GARMENT, role.BARCODE)
+def zone_of(cm, margin=0):
+    """Which spot a height is in (head/body/feet/out). margin = must be this far inside it."""
+    if cm == NO_SENSOR:
+        return "none"
+    for name, (lo, hi) in config.ZONES_MM.items():
+        if lo // 10 + margin <= cm <= hi // 10 - margin:
+            return name
+    if cm > max(hi for lo, hi in config.ZONES_MM.values()) // 10 + margin:
+        return "out"
+    return None  # sitting right on a boundary: don't decide yet
+
+
+print("ROLE", role.GARMENT, role.PREFIX)
 boot = time.ticks_ms()
-last_blink = last_dist = time.ticks_ms()
-candidate, candidate_since = False, time.ticks_ms()
-present = False
-shown = None          # "barcode" / "hidden" currently on the e-ink
+last_blink = last_dist = last_sample = time.ticks_ms()
+recent = []           # last few height readings (mm) for a steady median
+shown_cm = None       # height currently printed in the barcode
+candidate, candidate_since = None, time.ticks_ms()
 last_refresh = None
 while True:
-    read_stdin()
+    drain_stdin()
     if elapsed(last_blink) > 500:
         last_blink = time.ticks_ms()
         led.toggle()
 
-    mm = None
     if sensor:
         sensor.poll()
-        mm = sensor.mm
+        if sensor.mm is not None and elapsed(last_sample) >= 200:
+            last_sample = time.ticks_ms()
+            recent = (recent + [sensor.mm])[-config.SMOOTH_SAMPLES:]
         if elapsed(last_dist) > 1000:
             last_dist = time.ticks_ms()
-            if mm is not None:
-                print("DIST", mm)
+            if sensor.mm is not None:
+                print("DIST", sensor.mm)
 
-    # No sensor frames at all after a few seconds -> sensor missing/broken: keep the barcode up
-    no_sensor = ALWAYS_SHOW or sensor is None or (sensor.frames == 0 and elapsed(boot) > config.SENSOR_GRACE_MS)
+    no_sensor = sensor is None or (sensor.frames == 0 and elapsed(boot) > config.SENSOR_GRACE_MS)
     if no_sensor:
-        present = True
+        target = NO_SENSOR
+    elif recent:
+        target = min(sorted(recent)[len(recent) // 2] // 10, 998)  # median, mm -> cm
     else:
-        lo, hi = config.ZONES_MM.get(zone, (1, 0))  # no zone (no Drip request) -> never inside
-        inside = mm is not None and lo <= mm <= hi
-        if inside != candidate:  # debounce: must hold steady before we believe it
-            candidate, candidate_since = inside, time.ticks_ms()
-        if elapsed(candidate_since) >= config.HOLD_MS:
-            present = candidate
+        target = None  # sensor starting up
 
-    want = "barcode" if present else "hidden"
-    if (sensor is None or sensor.frames or no_sensor) and want != shown:
-        if last_refresh is None or elapsed(last_refresh) >= config.MIN_REFRESH_MS:
-            print("STATE", want, "zone=%s height=%s" % (zone, mm))
+    if target is not None:
+        if candidate is None or abs(target - candidate) >= config.CHANGE_CM:
+            candidate, candidate_since = target, time.ticks_ms()  # new value: let it settle first
+        settled = elapsed(candidate_since) >= config.HOLD_MS
+        # Only redraw when the garment moved to a DIFFERENT spot (head/body/feet). Jitter inside
+        # a spot never touches the e-ink, so the barcode stays still while you hold it in place.
+        new_zone = zone_of(candidate, config.HYSTERESIS_CM)
+        changed = shown_cm is None or (new_zone is not None and new_zone != zone_of(shown_cm))
+        if settled and changed and (last_refresh is None or elapsed(last_refresh) >= config.MIN_REFRESH_MS):
             last_refresh = time.ticks_ms()
-            (screen_barcode if want == "barcode" else screen_hidden)()
-            shown = want
+            code, ok = screen(candidate)
+            print("STATE", code, "sent" if ok else "display busy, retrying")
+            if ok:
+                shown_cm = candidate
     time.sleep_ms(50)

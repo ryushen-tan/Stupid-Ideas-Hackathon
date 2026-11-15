@@ -131,7 +131,7 @@ class Poll:
 sel.poll = Poll
 sys.modules["select"] = sel
 role = types.ModuleType("role")  # each real Pico has its own role.py; simulate the pants unit
-role.GARMENT, role.BARCODE = os.environ.get("ROLE", "pants"), os.environ.get("BARCODE", "20000024")
+role.GARMENT, role.PREFIX = os.environ.get("ROLE", "pants"), os.environ.get("PREFIX", "20000")
 sys.modules["role"] = role
 
 import eink_seeed as E  # noqa: E402
