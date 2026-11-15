@@ -52,13 +52,15 @@ class Tag:
         self.name = port.split("usbmodem")[-1]
         self.role = None
         self.height = None
+        self.alive = True
         threading.Thread(target=self._read, daemon=True).start()
 
     def _read(self):
-        while True:
+        while self.alive:
             try:
                 line = self.s.readline().decode(errors="replace").strip()
             except Exception:
+                self.alive = False  # unplugged
                 return
             if not line:
                 continue
@@ -73,7 +75,10 @@ class Tag:
         return self.role or self.name
 
     def send(self, text):
-        self.s.write((text + "\n").encode())
+        try:
+            self.s.write((text + "\n").encode())
+        except Exception:
+            self.alive = False  # unplugged; main loop drops it and re-adds it when it comes back
 
 
 def pico_ports():
@@ -81,28 +86,45 @@ def pico_ports():
         sorted(glob.glob("/dev/cu.usbmodem1*"))
 
 
+def refresh(tags):
+    """Drop unplugged Picos, open newly plugged ones."""
+    for t in [t for t in tags.values() if not t.alive]:
+        print(f"Pico {t.label()} unplugged ({t.port})", flush=True)
+        try:
+            t.s.close()
+        except Exception:
+            pass
+        del tags[t.port]
+    for port in pico_ports():
+        if port not in tags:
+            try:
+                tags[port] = Tag(port)
+                print(f"Pico connected on {port}", flush=True)
+            except Exception as e:
+                print(f"Can't open {port}: {e}", flush=True)
+
+
 def main():
-    tags = [Tag(p) for p in pico_ports()]
-    if not tags:
-        raise SystemExit("No Picos found on USB.")
-    print("Tags on:", ", ".join(t.port for t in tags), flush=True)
+    tags = {}
     last, last_print = None, 0
     while True:
+        refresh(tags)
         try:
             zones = current_zones()
         except Exception as e:
             print("DB read failed:", e, flush=True)
             zones = None
         cmd = "ZONES " + (" ".join(f"{g}={p}" for g, p in zones.items()) if zones else "none")
-        for t in tags:
+        for t in tags.values():
             t.send(cmd)  # resent every second so a rebooted Pico catches up
         if cmd != last:
             print(time.strftime("%H:%M:%S"), "Drip arrangement ->", cmd, flush=True)
             last = cmd
         if time.time() - last_print >= 1:
             last_print = time.time()
-            print("   heights: " + ", ".join(
-                f"{t.label()}={'-' if t.height is None else f'{t.height / 10:.0f}cm'}" for t in tags), flush=True)
+            print("   heights: " + (", ".join(
+                f"{t.label()}={'-' if t.height is None else f'{t.height / 10:.0f}cm'}" for t in tags.values())
+                or "no Picos plugged in"), flush=True)
         time.sleep(1)
 
 
