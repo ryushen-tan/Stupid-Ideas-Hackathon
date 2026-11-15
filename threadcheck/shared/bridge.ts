@@ -3,7 +3,12 @@ import { fitImagesSchema, fitSlots } from "./daily-fit";
 import { Outfit } from "./drip";
 import { parseTag } from "./tags";
 
-export const clothingBarcodesStorageKey = "drip-clothing-barcodes-v1";
+export const clothingBarcodesStorageKey = "drip-clothing-barcodes-v2";
+export const hardwareClothingBarcodes = {
+  top: "10000017",
+  pants: "20000024",
+  hat: "30000031",
+} satisfies Record<(typeof fitSlots)[number], string>;
 export const garmentSlot: Record<Outfit["head"], (typeof fitSlots)[number]> = {
   hoodie: "top",
   pants: "pants",

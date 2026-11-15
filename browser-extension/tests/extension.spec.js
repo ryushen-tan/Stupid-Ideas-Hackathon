@@ -164,13 +164,14 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
     await expect(app).toHaveURL("http://localhost:8081/browser");
     await expect(app.getByText("http://localhost:3020", { exact: true })).toBeVisible();
     await app.screenshot({ path: "test-results/link-clothing-waiting.png", fullPage: true });
-    const barcodes = { Top: "top-001", Pants: "pants-002", Hat: "hat-003" };
+    const barcodes = { Pants: "20000024", Top: "10000017", Hat: "30000031" };
     const linkingScanner = app.getByRole("textbox", { name: "Link clothing scanner input" });
     for (const [name, barcode] of Object.entries(barcodes)) {
       await expect(linkingScanner).toBeFocused();
       await app.keyboard.type(barcode);
       await app.keyboard.press("Enter");
       await expect(app.getByLabel(`${name === "Top" ? "Hoodie" : name}: linked`, { exact: true })).toBeVisible();
+      if (name === "Pants") await expect(app.getByLabel("Hoodie: waiting for scan", { exact: true })).toBeVisible();
       if (name === "Top") await app.screenshot({ path: "test-results/link-clothing-progress.png", fullPage: true });
     }
     await app.getByRole("button", { name: `Entre ${email}` }).click();

@@ -21,6 +21,7 @@ import {
   clothingBarcodesSchema,
   clothingBarcodesStorageKey,
   garmentSlot,
+  hardwareClothingBarcodes,
 } from "../../shared/bridge";
 import { z } from "zod";
 import {
@@ -85,6 +86,15 @@ export default function BrowserExtension() {
     if (!nextSlot) return;
     try {
       const tag = clothingBarcodeSchema.parse(code);
+      const scannedSlot = fitSlots.find(
+        (slot) =>
+          clothingBarcodeSchema.parse(hardwareClothingBarcodes[slot])
+            .barcode === tag.barcode,
+      );
+      if (!scannedSlot)
+        throw new Error(
+          "This tag is not one of your hoodie, pants, or hat tags.",
+        );
       if (
         fitSlots.some((slot) => {
           if (!barcodes[slot]) return false;
@@ -93,7 +103,7 @@ export default function BrowserExtension() {
         })
       )
         throw new Error("That item is already linked. Scan a different item.");
-      setBarcodes((current) => ({ ...current, [nextSlot]: code }));
+      setBarcodes((current) => ({ ...current, [scannedSlot]: code }));
     } catch (failure) {
       setError(
         failure instanceof Error
@@ -389,7 +399,7 @@ export default function BrowserExtension() {
                 <Text style={styles.title}>Link your clothes</Text>
                 <Text style={styles.note}>
                   {nextSlot
-                    ? `Scan your ${nextSlot === "top" ? "hoodie" : nextSlot} to light it up.`
+                    ? "Scan any clothing tag to light up its matching item."
                     : "Your clothes are ready. Choose the account you’re signing in to."}
                 </Text>
                 {fitSlots.map((slot) => {
