@@ -33,7 +33,7 @@ import { StoreSession } from "../../shared/model";
 import { accountCode } from "../../shared/totp";
 import { loadAccounts, LocalAccount } from "../accounts";
 import { defaultServerUrl, request } from "../api";
-import { loadSession, saveSession } from "../session";
+import { connectSession, demoPairingCode, loadSession } from "../session";
 import { OutfitMannequin, ClothingImages } from "../components/OutfitMannequin";
 import { dripColors as colors } from "../drip-theme";
 
@@ -72,7 +72,10 @@ export default function BrowserExtension() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      loadSession(),
+      loadSession().catch((failure: Error) => {
+        if (active) setConnectionError(failure.message);
+        return null;
+      }),
       loadAccounts(),
       AsyncStorage.getItem(dailyFitStorageKey),
       AsyncStorage.getItem(clothingBarcodesStorageKey),
@@ -86,9 +89,13 @@ export default function BrowserExtension() {
           const saved = savedBarcodesSchema.parse(JSON.parse(savedBarcodes));
           if (saved.day === localDay()) setBarcodes(saved.barcodes);
         }
-        setLoaded(true);
       })
-      .catch((failure: Error) => setError(failure.message));
+      .catch((failure: Error) => {
+        if (active) setError(failure.message);
+      })
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
     return () => {
       active = false;
     };
@@ -143,13 +150,10 @@ export default function BrowserExtension() {
         url.hash
       )
         throw new Error("Enter the server address only.");
-      const paired = await request<{ token: string }>(
-        { url: url.origin, token: "" },
-        "/pair",
-        { method: "POST", body: JSON.stringify({ code: serverCode }) },
+      const connection = await connectSession(
+        url.origin,
+        demoPairingCode || serverCode,
       );
-      const connection = { url: url.origin, token: paired.token };
-      await saveSession(connection);
       setSession(connection);
     } catch (failure) {
       setError(
@@ -288,20 +292,22 @@ export default function BrowserExtension() {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TextInput
-              accessibilityLabel="Server pairing code"
-              placeholder="6-digit server pairing code"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={serverCode}
-              onChangeText={setServerCode}
-              keyboardType="number-pad"
-              maxLength={6}
-              secureTextEntry
-            />
+            {!demoPairingCode && (
+              <TextInput
+                accessibilityLabel="Server pairing code"
+                placeholder="6-digit server pairing code"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={serverCode}
+                onChangeText={setServerCode}
+                keyboardType="number-pad"
+                maxLength={6}
+                secureTextEntry
+              />
+            )}
             <Pressable
               accessibilityRole="button"
-              disabled={busy || serverCode.length !== 6}
+              disabled={busy || (!demoPairingCode && serverCode.length !== 6)}
               onPress={() => void connectServer()}
               style={styles.button}
             >

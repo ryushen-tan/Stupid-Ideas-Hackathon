@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { StoreSession, StoreStatus } from "../../shared/model";
 import { defaultServerUrl, request } from "../api";
+import { connectSession, demoPairingCode } from "../session";
 import { Garment } from "../components/Garment";
 import { Button, common, Field, Notice, Pill } from "../components/UI";
 
@@ -36,12 +37,7 @@ export function StoreSettings({
           "Enter the vault address only, for example http://192.168.1.20:4310.",
         );
       const serverUrl = parsed.origin;
-      const paired = await request<{ token: string }>(
-        { url: serverUrl, token: "" },
-        "/pair",
-        { method: "POST", body: JSON.stringify({ code }) },
-      );
-      const next = { url: serverUrl, token: paired.token };
+      const next = await connectSession(serverUrl, demoPairingCode || code);
       setStatus(await request<StoreStatus>(next, "/store"));
       await onConnect(next);
     } catch (failure) {
@@ -127,26 +123,29 @@ export function StoreSettings({
               keyboardType="url"
               placeholder="http://192.168.1.20:4310"
             />
-            <Field
-              label="6-digit pairing code"
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              maxLength={6}
-              placeholder="From your vault server terminal"
-              secureTextEntry
-            />
+            {!demoPairingCode && (
+              <Field
+                label="6-digit pairing code"
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                maxLength={6}
+                placeholder="From your vault server terminal"
+                secureTextEntry
+              />
+            )}
             <Button
               label="Connect to vault"
               kind="bag"
               badge="check"
               loading={busy}
-              disabled={code.length !== 6}
+              disabled={!demoPairingCode && code.length !== 6}
               onPress={() => void connect()}
             />
             <Text style={[common.subtitle, { fontSize: 12 }]}>
-              Use your vault’s address and pairing code. For a local server,
-              keep both devices on the same Wi-Fi.
+              {demoPairingCode
+                ? "This single-user demo connects automatically."
+                : "Use your vault’s address and pairing code. For a local server, keep both devices on the same Wi-Fi."}
             </Text>
           </>
         )}

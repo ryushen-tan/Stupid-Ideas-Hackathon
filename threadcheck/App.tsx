@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { loadSession, saveSession, clearSession } from "./src/session";
+import { loadSession, clearSession } from "./src/session";
 import { Authenticator } from "./src/screens/Authenticator";
 import { AccountForm } from "./src/screens/AccountForm";
 import { DailyOutfit } from "./src/screens/DailyOutfit";
@@ -276,7 +276,6 @@ export default function App() {
                 <StoreSettings
                   session={session}
                   onConnect={async (next) => {
-                    await saveSession(next);
                     setSession(next);
                     setRevision((value) => value + 1);
                   }}

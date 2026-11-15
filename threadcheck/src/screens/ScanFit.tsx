@@ -21,7 +21,12 @@ import {
 } from "../../shared/daily-fit";
 import { StoreSession } from "../../shared/model";
 import { defaultServerUrl, request } from "../api";
-import { clearSession, loadSession, saveSession } from "../session";
+import {
+  clearSession,
+  connectSession,
+  demoPairingCode,
+  loadSession,
+} from "../session";
 import { preparePhoto } from "../photos";
 
 export function ScanFit({
@@ -128,13 +133,10 @@ export function ScanFit({
     setBusy(true);
     setError("");
     try {
-      const paired = await request<{ token: string }>(
-        { url: defaultServerUrl, token: "" },
-        "/pair",
-        { method: "POST", body: JSON.stringify({ code }) },
+      const connection = await connectSession(
+        defaultServerUrl,
+        demoPairingCode || code,
       );
-      const connection = { url: defaultServerUrl, token: paired.token };
-      await saveSession(connection);
       setSession(connection);
       await detect(photo, connection, capturedDay);
     } catch (failure) {
@@ -332,28 +334,34 @@ export function ScanFit({
               ) : !session ? (
                 <>
                   <Text style={styles.body}>
-                    Connect once to enable clothing detection.
+                    {demoPairingCode
+                      ? "Reconnect to finish scanning your fit."
+                      : "Connect once to enable clothing detection."}
                   </Text>
-                  <TextInput
-                    accessibilityLabel="Vault pairing code"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    value={code}
-                    onChangeText={setCode}
-                    placeholder="6-digit vault code"
-                    placeholderTextColor="#939694"
-                    style={styles.input}
-                  />
+                  {!demoPairingCode && (
+                    <TextInput
+                      accessibilityLabel="Vault pairing code"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      value={code}
+                      onChangeText={setCode}
+                      placeholder="6-digit vault code"
+                      placeholderTextColor="#939694"
+                      style={styles.input}
+                    />
+                  )}
                   <Pressable
                     accessibilityRole="button"
-                    disabled={code.length !== 6}
+                    disabled={!demoPairingCode && code.length !== 6}
                     style={[
                       styles.button,
-                      code.length !== 6 && styles.disabled,
+                      !demoPairingCode && code.length !== 6 && styles.disabled,
                     ]}
                     onPress={() => void connect()}
                   >
-                    <Text style={styles.buttonText}>Connect & scan</Text>
+                    <Text style={styles.buttonText}>
+                      {demoPairingCode ? "Retry connection" : "Connect & scan"}
+                    </Text>
                   </Pressable>
                 </>
               ) : (
@@ -392,7 +400,10 @@ export function ScanFit({
               style={styles.secondary}
               onPress={() => {
                 void clearSession()
-                  .then(() => setSession(null))
+                  .then(() => {
+                    setSession(null);
+                    if (demoPairingCode) return connect();
+                  })
                   .catch((failure: Error) => setError(failure.message));
               }}
             >

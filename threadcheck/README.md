@@ -37,7 +37,9 @@ The database lives in the existing **Ryuo Supabase** project (`iijwbjappulhuiviy
 
 Drip's schema was installed from `supabase/migrations` without changing Ryuo's migration history. Apply future Drip migrations explicitly with `supabase db query --remote=iijwbjappulhuiviyoph --file <new-migration.sql>`. Do not run `supabase db reset` or push this application's migration history over the shared Ryuo project. New tables must grant the `drip_server` role access while remaining inaccessible to `anon` and `authenticated`.
 
-The production website calls its own origin. Set `EXPO_PUBLIC_API_URL=https://drip-authenticator.vercel.app` in local Expo configuration to use this backend from a phone. When moving an existing vault with its sessions and encryption key, `EXPO_PUBLIC_PREVIOUS_API_URL` can name the old server address so the app preserves its pairing. These public variables must never contain credentials. Expo Go still requires a running Metro development server; the hosted website and API do not.
+For the single-user demo, `EXPO_PUBLIC_DEMO_PAIRING_CODE` is configured in Vercel Production with the same value as the server’s `PAIRING_CODE`. New devices connect automatically, concurrent connection attempts share one request, and the vault-code fields are hidden. This value is bundled publicly and grants access to the shared demo vault; device-local service accounts remain on their own device. Omit this variable for manual vault pairing. Failed connections show an error and a retry action.
+
+The production website calls its own origin. Set `EXPO_PUBLIC_API_URL=https://drip-authenticator.vercel.app` in local Expo configuration to use this backend from a phone. When moving an existing vault with its sessions and encryption key, `EXPO_PUBLIC_PREVIOUS_API_URL` can name the old server address so the app preserves its pairing. Only the intentionally public demo pairing code belongs in client configuration; keep database passwords, encryption keys, and Backboard credentials server-only. Expo Go still requires a running Metro development server; the hosted website and API do not.
 
 Deploy from the repository root after linking the Vercel project:
 
@@ -68,7 +70,7 @@ Open the web URL printed by Expo. The vault API listens on port **4310**. The se
 
 This repository uses a separate Supabase project named `threadcheck`: API **56321**, database **56322**, Studio **56323**. It does not modify another project’s Supabase stack. Supabase Auth is not used. The application schema is private and inaccessible to the anonymous/authenticated Data API roles; the Express server connects through `pg`.
 
-`npm run setup:local` preserves existing keys and creates a random encryption key and pairing code when absent. Keep the encryption key with your database backup: losing it makes stored TOTP secrets unrecoverable. Never put server credentials in `EXPO_PUBLIC_*` variables.
+`npm run setup:local` preserves existing keys and creates a random encryption key and pairing code when absent. Keep the encryption key with your database backup: losing it makes stored TOTP secrets unrecoverable. Keep database passwords, encryption keys, and Backboard credentials out of `EXPO_PUBLIC_*` variables.
 
 For the earlier SQLite prototype, `npx tsx scripts/migrate-sqlite.ts` copies catalog records, scan history, and active pairing sessions into Supabase without deleting the SQLite source. The current runtime uses Postgres only.
 
