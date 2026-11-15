@@ -1,3 +1,5 @@
+import { defaultServerUrl } from "./config.js";
+
 const elements = Object.fromEntries(
   [
     "connect",
@@ -15,6 +17,7 @@ const elements = Object.fromEntries(
   ].map((id) => [id, document.getElementById(id)]),
 );
 let timer;
+elements.server.value = defaultServerUrl;
 async function send(message) {
   const response = await chrome.runtime.sendMessage(message);
   if (!response.ok) throw new Error(response.error);

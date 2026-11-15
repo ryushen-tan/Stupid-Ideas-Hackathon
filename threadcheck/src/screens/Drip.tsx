@@ -69,10 +69,9 @@ export default function Drip() {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [label, setLabel] = useState("");
   const [error, setError] = useState("");
+  const [connectionError, setConnectionError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // While this screen is showing, watch for website code requests and pop them
-  // open on the browser-extension screen, so nobody has to dig through the menu.
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -81,16 +80,30 @@ export default function Drip() {
         try {
           const session = await loadSession();
           if (session) {
+            if (Platform.OS !== "web")
+              await request(session, "/bridge/demo/connect", {
+                method: "POST",
+              });
             const inbox = await request<BrowserInbox>(session, "/bridge/inbox");
-            const next = inbox.requests.find((r) => !shownOnMain.has(r.id));
+            if (active) setConnectionError("");
+            const next = inbox.requests.find(
+              (pending) => !shownOnMain.has(pending.id),
+            );
             if (next && active) {
               shownOnMain.add(next.id);
+              setSheet(null);
+              setSkippedDay(localDay());
               router.push("/browser");
               return;
             }
           }
-        } catch {
-          // vault offline or not paired yet: just try again
+        } catch (failure) {
+          if (active)
+            setConnectionError(
+              failure instanceof Error
+                ? failure.message
+                : "Could not check for browser requests.",
+            );
         }
         if (active) timer = setTimeout(poll, 2500);
       }
@@ -104,22 +117,6 @@ export default function Drip() {
 
   useEffect(() => {
     let mounted = true;
-    async function connectDemo() {
-      if (Platform.OS === "web") return;
-      try {
-        const session = await loadSession();
-        if (session)
-          await request(session, "/bridge/demo/connect", { method: "POST" });
-      } catch (failure) {
-        if (mounted)
-          setError(
-            failure instanceof Error
-              ? failure.message
-              : "Could not connect to your demo browser.",
-          );
-      }
-    }
-    void connectDemo();
     Promise.all([
       ensureDemoAccount().then(loadAccounts),
       AsyncStorage.getItem(dailyFitStorageKey),
@@ -139,7 +136,6 @@ export default function Drip() {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         setTimestamp(Date.now());
-        void connectDemo();
       }
     });
     return () => {
@@ -254,6 +250,11 @@ export default function Drip() {
         {!!error && !sheet && (
           <Text accessibilityRole="alert" style={styles.error}>
             {error}
+          </Text>
+        )}
+        {!!connectionError && !sheet && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {connectionError}
           </Text>
         )}
         <ScrollView

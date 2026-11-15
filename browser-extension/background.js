@@ -1,3 +1,5 @@
+import { defaultServerUrl } from "./config.js";
+
 const storageReady = chrome.storage.local.setAccessLevel({
   accessLevel: "TRUSTED_CONTEXTS",
 });
@@ -59,7 +61,7 @@ function connectionStatus() {
   statusRequest = (async () => {
     const {
       connection,
-      serverUrl = "http://localhost:4310",
+      serverUrl = defaultServerUrl,
       autoConnectDisabled = false,
     } = await chrome.storage.local.get([
       "connection",

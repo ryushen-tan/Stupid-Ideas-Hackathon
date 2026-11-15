@@ -140,10 +140,11 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
       },
       { session, secret, email },
     );
-    await app.goto("http://localhost:8081/browser");
-    await expect(
-      app.getByText("Demo connected · Your browser connects automatically."),
-    ).toBeVisible();
+    const connected = await request.post(`${session.url}/api/bridge/demo/connect`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    expect(connected.ok()).toBe(true);
+    await app.goto("http://localhost:8081");
     await expect(
       app.getByRole("textbox", { name: "Browser pairing code" }),
     ).toHaveCount(0);
@@ -160,11 +161,8 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
         name: "02 / Confirm your six-digit code",
       }),
     ).toHaveValue("");
-    await app
-      .getByRole("button", {
-        name: "http://localhost:3020 Check outfit → fill code",
-      })
-      .click();
+    await expect(app).toHaveURL("http://localhost:8081/browser");
+    await expect(app.getByText("http://localhost:3020", { exact: true })).toBeVisible();
     const barcodes = { Top: "top-001", Pants: "pants-002", Hat: "hat-003" };
     for (const [name, barcode] of Object.entries(barcodes)) {
       const field = app.getByRole("textbox", {

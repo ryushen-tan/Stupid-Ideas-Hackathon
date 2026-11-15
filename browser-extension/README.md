@@ -21,14 +21,14 @@ npm run server
 
 Keep the Expo app running as usual. Pair your USB/Bluetooth store scanner to the device running Drip in **keyboard / HID mode** with an **Enter suffix**. Scans go to that device; a scanner attached to your computer cannot type into a separate phone. The daily fit still uses the existing photo extraction, but barcode approval does not call a vision provider.
 
-1. Open the extension. Set the Drip server address, normally `http://localhost:4310` on the same computer, and choose **Connect app**.
-2. In Drip, open **Menu → Browser extension**. If prompted, enter the server’s address and its six-digit pairing code. On a phone, use the computer’s LAN address printed by the API, not `localhost`.
-3. Enter the extension’s eight-digit pairing code in Drip and choose **Pair browser**. Both URLs must reach the same server. Pairing codes expire after three minutes.
+1. Open the extension. It defaults to `https://drip-authenticator.vercel.app`. Choose **Connect app** if you previously disconnected. An existing installation may retain its old server: use **Reset connection**, enter the hosted address, and choose **Connect app**.
+2. In Drip, open **Menu → Browser extension**. The hosted single-user demo connects to its vault automatically.
+3. The hosted demo pairs your browser automatically when Drip is open on the phone. On a server with demo mode disabled, enter the extension’s eight-digit code and choose **Pair browser**; that code expires after three minutes.
 4. Add the website’s authenticator account with the + hat and scan your daily fit if you have not already done so.
 
 ## Single-user demo mode
 
-Set `BROWSER_DEMO_AUTO_CONNECT=true` in `threadcheck/server/.env`, run `npm run db:migrate`, and restart the API. Reload the unpacked extension and the local login page after updating it.
+The hosted Vercel demo has `BROWSER_DEMO_AUTO_CONNECT=true`. For local development, set it in `threadcheck/server/.env`, run `npm run db:migrate`, and restart the API. Reload the unpacked extension and the local login page after updating it.
 
 Open Drip on the phone that is already connected to this server. The first authenticated Drip app to open becomes the remembered demo app; opening **Browser extension** also registers it. Existing and new demo browsers then connect to that app automatically, with no browser pairing code. The binding survives API and browser restarts, until the phone session expires. A different Drip app cannot silently take over the demo.
 
