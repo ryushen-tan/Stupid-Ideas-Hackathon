@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AppState,
   KeyboardAvoidingView,
@@ -14,7 +14,9 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { Stack } from "expo-router";
+import { router, Stack, useFocusEffect } from "expo-router";
+import { BrowserInbox } from "../../shared/bridge";
+import { shownOnMain } from "../request-popup";
 import Svg, { Circle, Path } from "react-native-svg";
 import { currentOutfit } from "../../shared/drip";
 import {
@@ -31,6 +33,7 @@ import { dripColors as colors } from "../drip-theme";
 import { AccountForm } from "./AccountForm";
 import { loadAccounts, saveAccounts, LocalAccount } from "../accounts";
 import { resetDripData } from "../reset";
+import { ensureDemoAccount } from "../demo";
 import { loadSession } from "../session";
 import { request } from "../api";
 import { accountCode, parseAccount } from "../../shared/totp";
@@ -68,6 +71,37 @@ export default function Drip() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // While this screen is showing, watch for website code requests and pop them
+  // open on the browser-extension screen, so nobody has to dig through the menu.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      let timer: ReturnType<typeof setTimeout>;
+      async function poll() {
+        try {
+          const session = await loadSession();
+          if (session) {
+            const inbox = await request<BrowserInbox>(session, "/bridge/inbox");
+            const next = inbox.requests.find((r) => !shownOnMain.has(r.id));
+            if (next && active) {
+              shownOnMain.add(next.id);
+              router.push("/browser");
+              return;
+            }
+          }
+        } catch {
+          // vault offline or not paired yet: just try again
+        }
+        if (active) timer = setTimeout(poll, 2500);
+      }
+      void poll();
+      return () => {
+        active = false;
+        clearTimeout(timer);
+      };
+    }, []),
+  );
+
   useEffect(() => {
     let mounted = true;
     async function connectDemo() {
@@ -86,7 +120,10 @@ export default function Drip() {
       }
     }
     void connectDemo();
-    Promise.all([loadAccounts(), AsyncStorage.getItem(dailyFitStorageKey)])
+    Promise.all([
+      ensureDemoAccount().then(loadAccounts),
+      AsyncStorage.getItem(dailyFitStorageKey),
+    ])
       .then(([stored, savedFit]) => {
         if (mounted) {
           setRows(stored);

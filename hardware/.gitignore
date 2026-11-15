@@ -1,0 +1,3 @@
+preview_*.ppm
+__pycache__/
+bridge.log
