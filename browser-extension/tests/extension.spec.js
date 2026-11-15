@@ -163,20 +163,23 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
     ).toHaveValue("");
     await expect(app).toHaveURL("http://localhost:8081/browser");
     await expect(app.getByText("http://localhost:3020", { exact: true })).toBeVisible();
+    await app.screenshot({ path: "test-results/link-clothing-waiting.png", fullPage: true });
     const barcodes = { Top: "top-001", Pants: "pants-002", Hat: "hat-003" };
+    const linkingScanner = app.getByRole("textbox", { name: "Link clothing scanner input" });
     for (const [name, barcode] of Object.entries(barcodes)) {
-      const field = app.getByRole("textbox", {
-        name: `${name.toLowerCase()} barcode`,
-      });
-      await field.fill(barcode);
-      await field.press("Enter");
+      await expect(linkingScanner).toBeFocused();
+      await app.keyboard.type(barcode);
+      await app.keyboard.press("Enter");
+      await expect(app.getByLabel(`${name === "Top" ? "Hoodie" : name}: linked`, { exact: true })).toBeVisible();
+      if (name === "Top") await app.screenshot({ path: "test-results/link-clothing-progress.png", fullPage: true });
     }
     await app.getByRole("button", { name: `Entre ${email}` }).click();
     const scanner = app.getByRole("textbox", {
       name: "Clothing scanner input",
     });
-    await scanner.fill("wrong-item");
-    await scanner.press("Enter");
+    await expect(scanner).toBeFocused();
+    await app.keyboard.type("wrong-item");
+    await app.keyboard.press("Enter");
     await expect(app.getByRole("alert")).toContainText("Wrong item.");
     await expect(app.getByText("0 of 3 scanned")).toBeVisible();
     const codeFieldBeforeApproval = website.getByRole("textbox", {
@@ -189,10 +192,14 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
         .getByText(/^Scan (head|body|feet) ·/)
         .textContent();
       const garment = target.split("·")[1].trim();
-      await expect(scanner).toBeEditable();
-      await scanner.fill(barcodes[garment]);
-      await scanner.press("Enter");
+      await expect(scanner).toBeFocused();
+      await app.keyboard.type(barcodes[garment]);
+      await app.keyboard.press("Enter");
       if (index < 2) await expect(codeFieldBeforeApproval).toHaveValue("");
+      if (index === 0) {
+        await expect(app.getByText("1 of 3 scanned")).toBeVisible();
+        await app.screenshot({ path: "test-results/clothing-approval-progress.png", fullPage: true });
+      }
     }
     await expect(app.getByText("Code sent to your browser.")).toBeVisible();
     const codeField = website.getByRole("textbox", {
@@ -221,6 +228,46 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
     );
     if (cleanupError) throw cleanupError;
   }
+});
+
+test("automatic connection errors never ask for a browser pairing code", async ({ page, request }) => {
+  const session = await (await request.get("http://127.0.0.1:4321/__test/session")).json();
+  await page.addInitScript((session) => localStorage.setItem("threadcheck-session", JSON.stringify(session)), session);
+  await page.route("**/api/bridge/demo/connect", (route) => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    headers: { "access-control-allow-origin": "*" },
+    body: JSON.stringify({ error: "Connection temporarily unavailable." }),
+  }));
+  await page.goto("http://localhost:8081/browser");
+  await expect(page.getByRole("alert")).toContainText("Connection temporarily unavailable.");
+  await expect(page.getByRole("textbox", { name: "Browser pairing code" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Pair browser" })).toHaveCount(0);
+});
+
+test("an expired scan does not block the next browser request", async ({ page, request }) => {
+  const session = await (await request.get("http://127.0.0.1:4321/__test/session")).json();
+  await page.addInitScript((session) => localStorage.setItem("threadcheck-session", JSON.stringify(session)), session);
+  let inboxReads = 0;
+  await page.route("**/api/bridge/inbox", (route) => {
+    inboxReads += 1;
+    const first = inboxReads === 1;
+    return route.fulfill({
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ browsers: [], requests: [{
+        id: first ? "expiring-request" : "next-request",
+        browserName: "My browser",
+        origin: first ? "https://first.example" : "https://next.example",
+        expiresAt: Date.now() + (first ? 3000 : 180000),
+        status: "pending", setup: null, matchedCount: 0,
+      }] }),
+    });
+  });
+  await page.goto("http://localhost:8081/browser");
+  await expect(page.getByText("https://first.example", { exact: true })).toBeVisible();
+  await expect(page.getByText("https://next.example", { exact: true })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole("textbox", { name: "Link clothing scanner input" })).toBeFocused();
 });
 
 test("autofill supports split digits and refuses ambiguous, hidden, or replaced fields", async () => {

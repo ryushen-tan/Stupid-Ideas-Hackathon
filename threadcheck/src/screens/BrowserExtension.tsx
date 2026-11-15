@@ -1,6 +1,7 @@
 import { ComponentRef, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import {
   BrowserRequest,
   BridgeSetup,
   ClothingBarcodes,
+  clothingBarcodeSchema,
   clothingBarcodesSchema,
   clothingBarcodesStorageKey,
   garmentSlot,
@@ -40,6 +42,7 @@ import { celebrate } from "../demo";
 import { SuccessBanner } from "../components/SuccessBanner";
 import { OutfitMannequin, ClothingImages } from "../components/OutfitMannequin";
 import { dripColors as colors } from "../drip-theme";
+import { Garment } from "../components/Garment";
 
 const savedBarcodesSchema = z.object({
   day: z.string(),
@@ -54,9 +57,9 @@ export default function BrowserExtension() {
     pants: "",
     hat: "",
   });
-  const barcodeInputs = useRef<
-    Record<(typeof fitSlots)[number], ComponentRef<typeof TextInput> | null>
-  >({ top: null, pants: null, hat: null });
+  const linkingScanner = useRef<ComponentRef<typeof TextInput>>(null);
+  const linkingStatus = useScannerDetection();
+  const [linkingBarcode, setLinkingBarcode] = useState("");
   const [fit, setFit] = useState<SavedFit | null>(null);
   const [inbox, setInbox] = useState<BrowserInbox>({
     browsers: [],
@@ -72,8 +75,33 @@ export default function BrowserExtension() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [demoConnected, setDemoConnected] = useState(false);
+  const [demoConnected, setDemoConnected] = useState<boolean | null>(null);
   const [connectionError, setConnectionError] = useState("");
+  const nextSlot = fitSlots.find((slot) => !barcodes[slot]);
+
+  function linkClothing(code: string) {
+    setLinkingBarcode("");
+    setError("");
+    if (!nextSlot) return;
+    try {
+      const tag = clothingBarcodeSchema.parse(code);
+      if (
+        fitSlots.some((slot) => {
+          if (!barcodes[slot]) return false;
+          const saved = clothingBarcodeSchema.parse(barcodes[slot]);
+          return saved.barcode === tag.barcode && saved.serial === tag.serial;
+        })
+      )
+        throw new Error("That item is already linked. Scan a different item.");
+      setBarcodes((current) => ({ ...current, [nextSlot]: code }));
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not link this item.",
+      );
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -123,8 +151,9 @@ export default function BrowserExtension() {
         if (active) {
           setInbox(result);
           setConnectionError("");
-          // pop the newest website request straight open, no tapping needed
-          const next = result.requests.find((r) => !openedInBrowser.has(r.id));
+          const next = result.requests.find(
+            (pending) => !openedInBrowser.has(pending.id),
+          );
           if (next) {
             openedInBrowser.add(next.id);
             setSelected(next);
@@ -149,6 +178,26 @@ export default function BrowserExtension() {
       clearTimeout(timer);
     };
   }, [session, selected]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const timer = setTimeout(
+      () => {
+        setSelected(null);
+        setInbox((current) => ({
+          ...current,
+          requests: current.requests.filter(
+            (pending) => pending.id !== selected.id,
+          ),
+        }));
+        setError(
+          "This login request expired. Request a new scan from your browser.",
+        );
+      },
+      Math.max(0, selected.expiresAt - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [selected]);
 
   async function connectServer() {
     setBusy(true);
@@ -332,36 +381,93 @@ export default function BrowserExtension() {
           </>
         ) : session && selected ? (
           <>
+            <Text style={styles.note}>Login request from</Text>
             <Text style={styles.origin}>{selected.origin}</Text>
             <Text style={styles.note}>{selected.browserName}</Text>
             {!selected.setup ? (
               <>
-                <Text style={styles.title}>Clothing barcodes</Text>
+                <Text style={styles.title}>Link your clothes</Text>
                 <Text style={styles.note}>
-                  Scan each item’s tag once to link it.
+                  {nextSlot
+                    ? `Scan your ${nextSlot === "top" ? "hoodie" : nextSlot} to light it up.`
+                    : "Your clothes are ready. Choose the account you’re signing in to."}
                 </Text>
-                {fitSlots.map((slot, index) => (
-                  <TextInput
-                    key={slot}
-                    ref={(input) => {
-                      barcodeInputs.current[slot] = input;
-                    }}
-                    accessibilityLabel={`${slot} barcode`}
-                    placeholder={`${slot} barcode`}
-                    placeholderTextColor={colors.muted}
-                    style={styles.input}
-                    value={barcodes[slot]}
-                    onChangeText={(value) =>
-                      setBarcodes((current) => ({ ...current, [slot]: value }))
-                    }
-                    onSubmitEditing={() => {
-                      if (index < fitSlots.length - 1)
-                        barcodeInputs.current[fitSlots[index + 1]]?.focus();
-                    }}
-                    {...scannerInputProps}
-                    editable={!busy}
-                  />
-                ))}
+                {fitSlots.map((slot) => {
+                  const linked = Boolean(barcodes[slot]);
+                  const name =
+                    slot === "top"
+                      ? "Hoodie"
+                      : slot === "pants"
+                        ? "Pants"
+                        : "Hat";
+                  return (
+                    <View
+                      key={slot}
+                      style={[
+                        styles.garmentCard,
+                        linked && styles.garmentMatched,
+                      ]}
+                      accessibilityLabel={`${name}: ${linked ? "linked" : "waiting for scan"}`}
+                    >
+                      <View style={{ opacity: linked ? 1 : 0.25 }}>
+                        {fit ? (
+                          <Image
+                            source={{ uri: fit.items[slot].photo }}
+                            style={styles.garmentImage}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Garment
+                            kind={slot === "top" ? "hoodie" : slot}
+                            size={72}
+                            color={linked ? "#A2FAA3" : colors.muted}
+                          />
+                        )}
+                      </View>
+                      <Text style={styles.title}>{name}</Text>
+                      <Text style={[styles.note, linked && styles.matchedText]}>
+                        {linked
+                          ? "✓ Linked"
+                          : slot === nextSlot
+                            ? "Scan now"
+                            : "Waiting"}
+                      </Text>
+                    </View>
+                  );
+                })}
+                {nextSlot && (
+                  <>
+                    <TextInput
+                      ref={linkingScanner}
+                      accessibilityLabel="Link clothing scanner input"
+                      autoFocus
+                      onLayout={() => linkingScanner.current?.focus()}
+                      {...scannerInputProps}
+                      style={styles.scannerInput}
+                      caretHidden
+                      value={linkingBarcode}
+                      onChangeText={(text) => {
+                        linkingStatus.track(text);
+                        setLinkingBarcode(text);
+                      }}
+                      onSubmitEditing={(event) => {
+                        linkingStatus.submitted(event.nativeEvent.text);
+                        linkClothing(event.nativeEvent.text);
+                      }}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => linkingScanner.current?.focus()}
+                      style={styles.close}
+                    >
+                      <Text style={styles.link}>
+                        {linkingStatus.detected
+                          ? "Scanner connected · tap to focus"
+                          : "Ready to scan · tap to focus"}
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
                 <Text style={styles.title}>Choose your account</Text>
                 {!fit || fit.day !== localDay() ? (
                   <Text style={styles.note}>
@@ -372,7 +478,7 @@ export default function BrowserExtension() {
                     <Pressable
                       key={account.id}
                       accessibilityRole="button"
-                      disabled={busy}
+                      disabled={busy || Boolean(nextSlot)}
                       onPress={() => void prepare(account, Date.now())}
                       style={styles.card}
                     >
@@ -467,7 +573,7 @@ export default function BrowserExtension() {
               <Text style={styles.note}>
                 Demo connected · Your browser connects automatically.
               </Text>
-            ) : (
+            ) : demoConnected === false && !demoPairingCode ? (
               <>
                 <TextInput
                   accessibilityLabel="Browser pairing code"
@@ -493,6 +599,12 @@ export default function BrowserExtension() {
                   </Text>
                 </Pressable>
               </>
+            ) : (
+              <Text style={styles.note}>
+                {connectionError
+                  ? "Automatic connection needs attention. See the error above."
+                  : "Connecting your browser automatically…"}
+              </Text>
             )}
           </>
         ) : null}
@@ -598,6 +710,7 @@ function ClothingApproval({
       <OutfitMannequin
         outfit={outfits[setup.outfitIndex]}
         clothing={clothing}
+        completedPlacements={placements.slice(0, matchedCount)}
       />
       {!verified ? (
         <>
@@ -611,7 +724,9 @@ function ClothingApproval({
               ].name
             }
           </Text>
-          <Text style={styles.note}>{matchedCount} of 3 scanned</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.note}>
+            {matchedCount} of 3 scanned
+          </Text>
           <Text
             accessibilityRole="text"
             style={[
@@ -628,7 +743,8 @@ function ClothingApproval({
             accessibilityLabel="Clothing scanner input"
             autoFocus
             {...scannerInputProps}
-            editable={!busy}
+            onLayout={() => scanner.current?.focus()}
+            caretHidden
             value={barcode}
             onChangeText={(text) => {
               scannerStatus.track(text);
@@ -638,9 +754,7 @@ function ClothingApproval({
               scannerStatus.submitted(event.nativeEvent.text);
               void complete(event.nativeEvent.text);
             }}
-            placeholder={busy ? "Checking…" : "Waiting for your scanner…"}
-            placeholderTextColor={colors.muted}
-            style={styles.input}
+            style={styles.scannerInput}
           />
           <Pressable
             accessibilityRole="button"
@@ -648,7 +762,9 @@ function ClothingApproval({
             onPress={() => scanner.current?.focus()}
             style={styles.close}
           >
-            <Text style={styles.link}>Focus scanner</Text>
+            <Text style={styles.link}>
+              {busy ? "Checking…" : "Ready to scan · tap to focus"}
+            </Text>
           </Pressable>
         </>
       ) : (
@@ -675,6 +791,19 @@ function ClothingApproval({
   );
 }
 const styles = StyleSheet.create({
+  scannerInput: { position: "absolute", width: 1, height: 1, opacity: 0 },
+  garmentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  garmentMatched: { borderColor: "#A2FAA3", backgroundColor: "#1C3022" },
+  garmentImage: { width: 72, height: 80 },
+  matchedText: { color: "#A2FAA3" },
   screen: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",

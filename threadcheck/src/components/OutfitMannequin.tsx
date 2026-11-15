@@ -122,9 +122,11 @@ const poses: Record<keyof Outfit, Record<Outfit["head"], GarmentPose>> = {
 export function OutfitMannequin({
   outfit,
   clothing,
+  completedPlacements = placements,
 }: {
   outfit: Outfit;
   clothing: ClothingImages;
+  completedPlacements?: readonly (keyof Outfit)[];
 }) {
   const legsClipId = useId();
   const garments = placements.map((place) => ({
@@ -160,52 +162,57 @@ export function OutfitMannequin({
         {garments
           .slice()
           .sort((first, second) => first.pose.layer - second.pose.layer)
-          .map(({ place, kind, pose }) =>
-            "wrap" in pose ? (
-              <HeadWrap
-                key={place}
-                source={clothing[kind].source}
-                kind={pose.wrap}
-              />
-            ) : (
-              <G
-                key={place}
-                clipPath={
-                  place === "feet" && kind !== "hat"
-                    ? `url(#${legsClipId})`
-                    : undefined
-                }
-              >
-                {place === "body" && kind === "pants" && (
-                  <>
-                    <Path
-                      d="M65 116C44 116 39 95 47 88C56 79 65 93 62 105M115 116C136 116 141 95 133 88C124 79 115 93 118 105"
-                      fill="none"
-                      stroke="#54738C"
-                      strokeWidth={8}
-                      strokeLinecap="round"
-                    />
-                    <Path
-                      d="M65 116C44 116 39 95 47 88C56 79 65 93 62 105M115 116C136 116 141 95 133 88C124 79 115 93 118 105"
-                      fill="none"
-                      stroke="#A3A08B"
-                      strokeWidth={1}
-                      strokeDasharray="2 3"
-                    />
-                  </>
-                )}
-                <Image
-                  href={clothing[kind].source}
-                  x={pose.x}
-                  y={pose.y}
-                  width={pose.width}
-                  height={pose.height}
-                  preserveAspectRatio="none"
-                  transform={`rotate(${pose.rotation} ${pose.x + pose.width / 2} ${pose.y + pose.height / 2})`}
+          .map(({ place, kind, pose }) => (
+            <G
+              key={place}
+              opacity={completedPlacements.includes(place) ? 1 : 0.18}
+            >
+              {"wrap" in pose ? (
+                <HeadWrap
+                  key={place}
+                  source={clothing[kind].source}
+                  kind={pose.wrap}
                 />
-              </G>
-            ),
-          )}
+              ) : (
+                <G
+                  key={place}
+                  clipPath={
+                    place === "feet" && kind !== "hat"
+                      ? `url(#${legsClipId})`
+                      : undefined
+                  }
+                >
+                  {place === "body" && kind === "pants" && (
+                    <>
+                      <Path
+                        d="M65 116C44 116 39 95 47 88C56 79 65 93 62 105M115 116C136 116 141 95 133 88C124 79 115 93 118 105"
+                        fill="none"
+                        stroke="#54738C"
+                        strokeWidth={8}
+                        strokeLinecap="round"
+                      />
+                      <Path
+                        d="M65 116C44 116 39 95 47 88C56 79 65 93 62 105M115 116C136 116 141 95 133 88C124 79 115 93 118 105"
+                        fill="none"
+                        stroke="#A3A08B"
+                        strokeWidth={1}
+                        strokeDasharray="2 3"
+                      />
+                    </>
+                  )}
+                  <Image
+                    href={clothing[kind].source}
+                    x={pose.x}
+                    y={pose.y}
+                    width={pose.width}
+                    height={pose.height}
+                    preserveAspectRatio="none"
+                    transform={`rotate(${pose.rotation} ${pose.x + pose.width / 2} ${pose.y + pose.height / 2})`}
+                  />
+                </G>
+              )}
+            </G>
+          ))}
       </Svg>
       {garments.map(({ place, pose }) => (
         <View key={place} style={[styles.label, { top: pose.labelY }]}>
