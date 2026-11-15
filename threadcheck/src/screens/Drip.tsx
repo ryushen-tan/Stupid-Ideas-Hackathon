@@ -241,15 +241,31 @@ export default function Drip() {
                 </Text>
                 <View style={styles.code}>
                   <View style={styles.garments}>
+                    <Svg
+                      width={112}
+                      height={240}
+                      viewBox="0 0 112 240"
+                      style={styles.mannequin}
+                    >
+                      <Circle cx={56} cy={34} r={24} fill="#202225" />
+                      <Path
+                        d="M44 62H68L88 77L104 139L93 143L76 98V146L73 220H60L56 163L52 220H39L36 146V98L19 143L8 139L24 77Z"
+                        fill="#202225"
+                        stroke={colors.line}
+                        strokeWidth={1.5}
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
                     {placements.map((place) => (
                       <View key={place} style={styles.placement}>
                         <Image
                           source={clothing[outfit[place]].source}
-                          accessibilityLabel={clothing[outfit[place]].name}
+                          accessibilityLabel={`${clothing[outfit[place]].name} on your ${place}`}
                           style={styles.clothingImage}
                           resizeMode="contain"
                           fadeDuration={0}
                         />
+                        <View style={styles.placementLine} />
                         <Text style={styles.place}>{place}</Text>
                       </View>
                     ))}
@@ -551,14 +567,15 @@ const styles = StyleSheet.create({
   code: { flexDirection: "row", alignItems: "center", marginTop: 9 },
   garments: {
     flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    maxWidth: 310,
-    paddingRight: 18,
+    alignItems: "flex-start",
+    maxWidth: 260,
+    marginLeft: "auto",
   },
-  placement: { alignItems: "center", flex: 1 },
-  clothingImage: { width: "100%", maxWidth: 76, height: 76, borderRadius: 8 },
-  place: { color: colors.blue, fontSize: 13, marginTop: 3 },
+  mannequin: { position: "absolute", top: 0, left: 0 },
+  placement: { flexDirection: "row", alignItems: "center", height: 80 },
+  clothingImage: { width: 80, height: 76, marginHorizontal: 16 },
+  placementLine: { width: 18, height: 1, backgroundColor: colors.line },
+  place: { color: colors.blue, fontSize: 13, marginLeft: 10 },
   timer: { marginLeft: "auto", paddingRight: 10 },
   pressed: { opacity: 0.65 },
   add: {
