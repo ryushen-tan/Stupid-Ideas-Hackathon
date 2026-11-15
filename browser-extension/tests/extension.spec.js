@@ -164,7 +164,7 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
     await expect(app).toHaveURL("http://localhost:8081/browser");
     await expect(app.getByText("http://localhost:3020", { exact: true })).toBeVisible();
     await app.screenshot({ path: "test-results/link-clothing-waiting.png", fullPage: true });
-    const barcodes = { Pants: "20000024", Top: "10000017", Hat: "30000031" };
+    const barcodes = { Pants: "20000999", Top: "10000999", Hat: "30000999" };
     const linkingScanner = app.getByRole("textbox", { name: "Link clothing scanner input" });
     for (const [name, barcode] of Object.entries(barcodes)) {
       await expect(linkingScanner).toBeFocused();
@@ -189,12 +189,8 @@ test("demo auto-connects to Drip and fills real Next.js MFA after three clothing
     await expect(codeFieldBeforeApproval).toHaveValue("");
     for (let index = 0; index < 3; index++) {
       await expect(app.getByText(`${index} of 3 scanned`)).toBeVisible();
-      const target = await app
-        .getByText(/^Scan (head|body|feet) ·/)
-        .textContent();
-      const garment = target.split("·")[1].trim();
       await expect(scanner).toBeFocused();
-      await app.keyboard.type(barcodes[garment]);
+      await app.keyboard.type(Object.values(barcodes)[index]);
       await app.keyboard.press("Enter");
       if (index < 2) await expect(codeFieldBeforeApproval).toHaveValue("");
       if (index === 0) {
@@ -261,7 +257,7 @@ test("an expired scan does not block the next browser request", async ({ page, r
         browserName: "My browser",
         origin: first ? "https://first.example" : "https://next.example",
         expiresAt: Date.now() + (first ? 3000 : 180000),
-        status: "pending", setup: null, matchedCount: 0,
+        status: "pending", setup: null, matchedCount: 0, matchedPlacements: [],
       }] }),
     });
   });

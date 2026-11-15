@@ -96,15 +96,18 @@ test("paired browser receives only one fresh code after a successful clothing ch
   await phonePost(id, "prepare")
     .send({ ...setup, outfitIndex: 0 })
     .expect(409);
-  await phonePost(id, "proof").send({ code: setup.barcodes.top }).expect(422);
   await phonePost(id, "proof").send({ code: "unknown-tag" }).expect(422);
   await phonePost(id, "complete")
     .send({ code: "123456", validUntil: Date.now() + 30_000 })
     .expect(409);
   await phonePost(id, "proof")
-    .send({ code: "00012345678905" })
-    .expect(200, { matchedCount: 1, status: "prepared" });
-  await phonePost(id, "proof").send({ code: setup.barcodes.hat }).expect(422);
+    .send({ code: setup.barcodes.pants })
+    .expect(200, {
+      matchedCount: 1,
+      matchedPlacements: ["feet"],
+      status: "prepared",
+    });
+  await phonePost(id, "proof").send({ code: setup.barcodes.pants }).expect(422);
   const concurrent = await Promise.all([
     phonePost(id, "proof").send({ code: setup.barcodes.top }),
     phonePost(id, "proof").send({ code: setup.barcodes.top }),
@@ -124,8 +127,12 @@ test("paired browser receives only one fresh code after a successful clothing ch
     2,
   );
   await phonePost(id, "proof")
-    .send({ code: setup.barcodes.pants })
-    .expect(200, { matchedCount: 3, status: "verified" });
+    .send({ code: "00012345678905" })
+    .expect(200, {
+      matchedCount: 3,
+      matchedPlacements: ["feet", "body", "head"],
+      status: "verified",
+    });
   await phonePost(id, "proof").send({ code: setup.barcodes.pants }).expect(409);
   await phonePost(id, "complete")
     .send({ code: "123456", validUntil: Date.now() - 1 })

@@ -10,8 +10,11 @@ import {
   garmentSlot,
 } from "../shared/bridge";
 import { outfits, placements } from "../shared/drip";
-import { heightProblem, heightTag } from "../shared/height-tags";
-import { parseTag } from "../shared/tags";
+import {
+  heightProblem,
+  heightTag,
+  sameClothingTag,
+} from "../shared/height-tags";
 import { Store } from "./database";
 import { secretCipher } from "./secrets";
 import { VaultError } from "./vault";
@@ -220,7 +223,7 @@ export function browserBridge(
       [response.locals.tokenHash, now()],
     );
     const requests = await store.database.query<BrowserRequest>(
-      `SELECT r.id,b.name AS "browserName",r.origin,r."expiresAt",r.status,r.setup,r."matchedCount" FROM browser_requests r JOIN browser_connections b ON b.id=r."browserId" WHERE b."sessionToken"=$1 AND b."expiresAt">$2 AND r."expiresAt">$2 AND r.status IN ('pending','prepared','verified') ORDER BY r."expiresAt" LIMIT 10`,
+      `SELECT r.id,b.name AS "browserName",r.origin,r."expiresAt",r.status,r.setup,r."matchedCount",r."matchedPlacements" FROM browser_requests r JOIN browser_connections b ON b.id=r."browserId" WHERE b."sessionToken"=$1 AND b."expiresAt">$2 AND r."expiresAt">$2 AND r.status IN ('pending','prepared','verified') ORDER BY r."expiresAt" LIMIT 10`,
       [response.locals.tokenHash, now()],
     );
     response.json({ browsers: browsers.rows, requests: requests.rows });
@@ -262,9 +265,7 @@ export function browserBridge(
     "/requests/:id/proof",
     rateLimit({ windowMs: 60_000, limit: 30 }),
     async (request, response) => {
-      const { code } = z
-        .object({ code: clothingBarcodeSchema })
-        .parse(request.body);
+      z.object({ code: clothingBarcodeSchema }).parse(request.body);
       const rawCode = String((request.body as { code: string }).code).trim();
       const current: BrowserRequest = response.locals.browserRequest;
       if (!current.setup || current.status !== "prepared")
@@ -272,34 +273,36 @@ export function browserBridge(
           409,
           "Start a clothing scan before submitting a barcode.",
         );
-      const placement = placements[current.matchedCount];
-      const garment = outfits[current.setup.outfitIndex][placement];
-      const linkedRaw = current.setup.barcodes[garmentSlot[garment]];
+      const setup = current.setup;
+      const placement = placements.find((place) =>
+        sameClothingTag(
+          rawCode,
+          setup.barcodes[garmentSlot[outfits[setup.outfitIndex][place]]],
+        ),
+      );
+      if (!placement)
+        throw new VaultError(
+          422,
+          "Wrong item. Scan one of your linked clothes.",
+        );
+      if (current.matchedPlacements.includes(placement))
+        throw new VaultError(
+          422,
+          "Already scanned that item. Scan another item.",
+        );
+      const garment = outfits[setup.outfitIndex][placement];
       const scannedTag = heightTag(rawCode);
-      const linkedTag = heightTag(linkedRaw);
-      if (scannedTag && linkedTag) {
-        // Hardware tag: same garment ID, and its measured height must suit the placement
-        if (scannedTag.id !== linkedTag.id)
-          throw new VaultError(
-            422,
-            `Wrong item. Scan the clothing shown at ${placement}.`,
-          );
+      if (scannedTag) {
         const problem = heightProblem(garment, scannedTag.heightCm, placement);
         if (problem) throw new VaultError(422, problem);
-      } else {
-        const expected = parseTag(linkedRaw);
-        if (code.barcode !== expected.barcode || code.serial !== expected.serial)
-          throw new VaultError(
-            422,
-            `Wrong item. Scan the clothing shown at ${placement}.`,
-          );
       }
       const updated = await store.database.query<{
         matchedCount: number;
+        matchedPlacements: BrowserRequest["matchedPlacements"];
         status: BrowserRequest["status"];
       }>(
-        `UPDATE browser_requests SET "matchedCount"="matchedCount"+1,status=CASE WHEN "matchedCount"=2 THEN 'verified' ELSE 'prepared' END WHERE id=$1 AND status='prepared' AND "matchedCount"=$2 AND "expiresAt">$3 RETURNING "matchedCount",status`,
-        [current.id, current.matchedCount, now()],
+        `UPDATE browser_requests SET "matchedPlacements"=array_append("matchedPlacements",$2),status=CASE WHEN "matchedCount"=2 THEN 'verified' ELSE 'prepared' END WHERE id=$1 AND status='prepared' AND NOT ($2=ANY("matchedPlacements")) AND "expiresAt">$3 RETURNING "matchedCount","matchedPlacements",status`,
+        [current.id, placement, now()],
       );
       if (!updated.rows[0])
         throw new VaultError(

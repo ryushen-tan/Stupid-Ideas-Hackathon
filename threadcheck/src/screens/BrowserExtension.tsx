@@ -20,7 +20,6 @@ import {
   clothingBarcodeSchema,
   clothingBarcodesSchema,
   clothingBarcodesStorageKey,
-  garmentSlot,
   hardwareClothingBarcodes,
 } from "../../shared/bridge";
 import { sameClothingTag } from "../../shared/height-tags";
@@ -643,10 +642,15 @@ function ClothingApproval({
 }) {
   const scanner = useRef<ComponentRef<typeof TextInput>>(null);
   const scannerStatus = useScannerDetection();
+  const scanQueue = useRef(Promise.resolve());
+  const sentCode = useRef(false);
   const [barcode, setBarcode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [matchedCount, setMatchedCount] = useState(pending.matchedCount);
+  const [matchedPlacements, setMatchedPlacements] = useState(
+    pending.matchedPlacements,
+  );
+  const matchedCount = matchedPlacements.length;
   const verified = matchedCount === placements.length;
   useEffect(() => {
     if (!busy) scanner.current?.focus();
@@ -682,22 +686,22 @@ function ClothingApproval({
         validUntil: (Math.floor(timestamp / period) + 1) * period,
       }),
     });
+    sentCode.current = true;
     onSent();
   }
   async function complete(code?: string) {
-    if (busy) return;
+    if (sentCode.current) return;
     setBusy(true);
     setError("");
-    setBarcode("");
     try {
       if (!verified) {
         const result = await request<
-          Pick<BrowserRequest, "matchedCount" | "status">
+          Pick<BrowserRequest, "matchedPlacements" | "status">
         >(session, `/bridge/requests/${pending.id}/proof`, {
           method: "POST",
           body: JSON.stringify({ code }),
         });
-        setMatchedCount(result.matchedCount);
+        setMatchedPlacements(result.matchedPlacements);
         if (result.status !== "verified") return;
       }
       await sendCode();
@@ -718,20 +722,11 @@ function ClothingApproval({
       <OutfitMannequin
         outfit={outfits[setup.outfitIndex]}
         clothing={clothing}
-        completedPlacements={placements.slice(0, matchedCount)}
+        completedPlacements={matchedPlacements}
       />
       {!verified ? (
         <>
-          <Text style={styles.title}>
-            Scan {placements[matchedCount]} ·{" "}
-            {
-              setup.items[
-                garmentSlot[
-                  outfits[setup.outfitIndex][placements[matchedCount]]
-                ]
-              ].name
-            }
-          </Text>
+          <Text style={styles.title}>Scan your clothes in any order</Text>
           <Text accessibilityLiveRegion="polite" style={styles.note}>
             {matchedCount} of 3 scanned
           </Text>
@@ -760,7 +755,9 @@ function ClothingApproval({
             }}
             onSubmitEditing={(event) => {
               scannerStatus.submitted(event.nativeEvent.text);
-              void complete(event.nativeEvent.text);
+              const code = event.nativeEvent.text;
+              setBarcode("");
+              scanQueue.current = scanQueue.current.then(() => complete(code));
             }}
             style={styles.scannerInput}
           />

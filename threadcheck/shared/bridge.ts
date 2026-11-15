@@ -90,6 +90,7 @@ export interface BrowserRequest {
     "pending" | "prepared" | "verified" | "ready" | "delivered" | "rejected";
   setup: BridgeSetup | null;
   matchedCount: number;
+  matchedPlacements: (keyof Outfit)[];
 }
 export interface BrowserConnection {
   id: string;
