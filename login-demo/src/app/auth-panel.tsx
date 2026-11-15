@@ -10,6 +10,7 @@ type Enrollment = Extract<NonNullable<AuthMFAEnrollResponse['data']>, { type: 't
 type Step = 'credentials' | 'setup' | 'verify' | 'access' | 'complete';
 
 export function AuthPanel() {
+  
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [step, setStep] = useState<Step>('credentials');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
