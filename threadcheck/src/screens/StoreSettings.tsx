@@ -145,8 +145,8 @@ export function StoreSettings({
               onPress={() => void connect()}
             />
             <Text style={[common.subtitle, { fontSize: 12 }]}>
-              Use the phone connection address and pairing code printed when you
-              start the vault server. Keep both devices on the same Wi-Fi.
+              Use your vault’s address and pairing code. For a local server,
+              keep both devices on the same Wi-Fi.
             </Text>
           </>
         )}
