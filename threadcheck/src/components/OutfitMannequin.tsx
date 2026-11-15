@@ -60,14 +60,14 @@ const poses: Record<keyof Outfit, Record<Outfit["head"], GarmentPose>> = {
       labelY: 125,
     },
     pants: {
-      x: 42,
-      y: 82,
-      width: 96,
+      x: 30,
+      y: 102,
+      width: 120,
       height: 150,
       rotation: 0,
       layer: 1,
       label: "torso",
-      instruction: "pull waistband to chest",
+      instruction: "hook waistband onto sleeves",
       labelY: 128,
     },
     hat: {
@@ -84,10 +84,10 @@ const poses: Record<keyof Outfit, Record<Outfit["head"], GarmentPose>> = {
   },
   feet: {
     hoodie: {
-      x: 25,
-      y: 178,
-      width: 130,
-      height: 132,
+      x: 30,
+      y: 148,
+      width: 120,
+      height: 192,
       rotation: 180,
       layer: 1,
       label: "legs",
@@ -95,10 +95,10 @@ const poses: Record<keyof Outfit, Record<Outfit["head"], GarmentPose>> = {
       labelY: 261,
     },
     pants: {
-      x: 46,
-      y: 177,
-      width: 88,
-      height: 132,
+      x: 42,
+      y: 168,
+      width: 96,
+      height: 142,
       rotation: 0,
       layer: 1,
       label: "legs",
@@ -126,6 +126,7 @@ export function OutfitMannequin({
   outfit: Outfit;
   clothing: ClothingImages;
 }) {
+  const legsClipId = useId();
   const garments = placements.map((place) => ({
     place,
     kind: outfit[place],
@@ -141,6 +142,11 @@ export function OutfitMannequin({
         .join(". ")}
     >
       <Svg width={180} height={320} viewBox="0 0 180 320">
+        <Defs>
+          <ClipPath id={legsClipId}>
+            <Path d="M59 174H121L120 198L114 306H96L90 220L84 306H66L60 198Z" />
+          </ClipPath>
+        </Defs>
         <G
           fill="#303338"
           stroke="#555A61"
@@ -162,16 +168,42 @@ export function OutfitMannequin({
                 kind={pose.wrap}
               />
             ) : (
-              <Image
+              <G
                 key={place}
-                href={clothing[kind].source}
-                x={pose.x}
-                y={pose.y}
-                width={pose.width}
-                height={pose.height}
-                preserveAspectRatio="none"
-                transform={`rotate(${pose.rotation} ${pose.x + pose.width / 2} ${pose.y + pose.height / 2})`}
-              />
+                clipPath={
+                  place === "feet" && kind !== "hat"
+                    ? `url(#${legsClipId})`
+                    : undefined
+                }
+              >
+                {place === "body" && kind === "pants" && (
+                  <>
+                    <Path
+                      d="M65 116C44 116 39 95 47 88C56 79 65 93 62 105M115 116C136 116 141 95 133 88C124 79 115 93 118 105"
+                      fill="none"
+                      stroke="#54738C"
+                      strokeWidth={8}
+                      strokeLinecap="round"
+                    />
+                    <Path
+                      d="M65 116C44 116 39 95 47 88C56 79 65 93 62 105M115 116C136 116 141 95 133 88C124 79 115 93 118 105"
+                      fill="none"
+                      stroke="#A3A08B"
+                      strokeWidth={1}
+                      strokeDasharray="2 3"
+                    />
+                  </>
+                )}
+                <Image
+                  href={clothing[kind].source}
+                  x={pose.x}
+                  y={pose.y}
+                  width={pose.width}
+                  height={pose.height}
+                  preserveAspectRatio="none"
+                  transform={`rotate(${pose.rotation} ${pose.x + pose.width / 2} ${pose.y + pose.height / 2})`}
+                />
+              </G>
             ),
           )}
       </Svg>
