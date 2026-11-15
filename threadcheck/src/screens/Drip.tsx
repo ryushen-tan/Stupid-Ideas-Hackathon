@@ -30,6 +30,7 @@ import { ClothingImages, OutfitMannequin } from "../components/OutfitMannequin";
 import { dripColors as colors } from "../drip-theme";
 import { AccountForm } from "./AccountForm";
 import { loadAccounts, saveAccounts, LocalAccount } from "../accounts";
+import { resetDripData } from "../reset";
 import { loadSession } from "../session";
 import { request } from "../api";
 import { accountCode, parseAccount } from "../../shared/totp";
@@ -301,6 +302,16 @@ export default function Drip() {
         <DripMenu
           onScan={() => setSheet({ kind: "scan" })}
           onClose={() => setSheet(null)}
+          onReset={async (disconnect) => {
+            await resetDripData(disconnect);
+            setRows([]);
+            setDailyFit(null);
+            setSkippedDay("");
+            setSearch("");
+            setLabel("");
+            setError("");
+            setSheet(null);
+          }}
         />
       )}
       {showDailyScan && (

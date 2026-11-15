@@ -3,6 +3,11 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: "*.spec.js",
   workers: 1,
+  use: {
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+      : {},
+  },
   timeout: 90_000,
   webServer: {
     command: "./node_modules/.bin/tsx ../browser-extension/tests/relay.ts",

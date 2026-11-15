@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -52,13 +53,18 @@ type MenuPage = (typeof entries)[number]["id"];
 export function DripMenu({
   onClose,
   onScan,
+  onReset,
 }: {
   onClose: () => void;
   onScan: () => void;
+  onReset: (disconnect: boolean) => Promise<void>;
 }) {
   const [page, setPage] = useState<MenuPage | null>(null);
   const [input, setInput] = useState("");
   const [message, setMessage] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [disconnect, setDisconnect] = useState(false);
 
   async function copy(text: string) {
     try {
@@ -74,7 +80,13 @@ export function DripMenu({
   }
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        if (!resetting) onClose();
+      }}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
@@ -82,6 +94,7 @@ export function DripMenu({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close menu"
+          disabled={resetting}
           onPress={onClose}
           style={StyleSheet.absoluteFill}
         />
@@ -91,7 +104,9 @@ export function DripMenu({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Back to menu"
+                disabled={resetting}
                 onPress={() => {
+                  setConfirmReset(false);
                   setPage(null);
                   setMessage("");
                   setInput("");
@@ -106,6 +121,7 @@ export function DripMenu({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close menu"
+              disabled={resetting}
               onPress={onClose}
               style={styles.control}
             >
@@ -129,6 +145,7 @@ export function DripMenu({
                         router.push("/browser");
                         return;
                       }
+                      setConfirmReset(false);
                       setPage(entry.id);
                       setMessage("");
                       setInput("");
@@ -168,8 +185,8 @@ export function DripMenu({
                 {page === "how" && (
                   <>
                     <Text style={styles.body}>
-                      Read each outfit from top to bottom. The labels show
-                      where each piece belongs on the mannequin.
+                      Read each outfit from top to bottom. The labels show where
+                      each piece belongs on the mannequin.
                     </Text>
                     <Text style={styles.body}>
                       The mannequin shows which clothing item goes in each
@@ -198,6 +215,7 @@ export function DripMenu({
                     <Pressable
                       accessibilityRole="button"
                       style={styles.button}
+                      disabled={resetting}
                       onPress={onScan}
                     >
                       <Text style={styles.buttonText}>Scan today’s fit</Text>
@@ -205,6 +223,7 @@ export function DripMenu({
                     <Pressable
                       accessibilityRole="button"
                       style={styles.button}
+                      disabled={resetting}
                       onPress={() => {
                         onClose();
                         router.push("/vault");
@@ -212,6 +231,71 @@ export function DripMenu({
                     >
                       <Text style={styles.buttonText}>Vault & scanners</Text>
                     </Pressable>
+                    <View style={styles.divider} />
+                    {confirmReset ? (
+                      <>
+                        <Text style={styles.body}>Start over?</Text>
+                        <Text style={styles.secondary}>
+                          Remove all saved services, today’s outfit and clothing
+                          barcodes from this device. Existing website two-factor
+                          settings stay enabled.
+                        </Text>
+                        <View style={styles.resetOption}>
+                          <Text style={styles.resetLabel}>
+                            Also disconnect server & browsers
+                          </Text>
+                          <Switch
+                            accessibilityLabel="Also disconnect server and browsers"
+                            value={disconnect}
+                            onValueChange={setDisconnect}
+                            disabled={resetting}
+                          />
+                        </View>
+                        <Pressable
+                          accessibilityRole="button"
+                          disabled={resetting}
+                          style={[styles.button, resetting && styles.disabled]}
+                          onPress={async () => {
+                            setResetting(true);
+                            setMessage("");
+                            try {
+                              await onReset(disconnect);
+                            } catch (failure) {
+                              setMessage(
+                                failure instanceof Error
+                                  ? failure.message
+                                  : "Could not reset Drip. Try again.",
+                              );
+                            } finally {
+                              setResetting(false);
+                            }
+                          }}
+                        >
+                          <Text style={styles.dangerText}>
+                            {resetting ? "Resetting…" : "Delete saved data"}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          disabled={resetting}
+                          style={styles.button}
+                          onPress={() => setConfirmReset(false)}
+                        >
+                          <Text style={styles.buttonText}>Cancel reset</Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Pressable
+                        accessibilityRole="button"
+                        style={styles.button}
+                        onPress={() => {
+                          setMessage("");
+                          setConfirmReset(true);
+                        }}
+                      >
+                        <Text style={styles.dangerText}>Reset Drip data</Text>
+                      </Pressable>
+                    )}
                   </>
                 )}
                 {page === "transfer" && (
@@ -332,6 +416,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlignVertical: "top",
   },
+  dangerText: { color: "#FFB4AB", fontSize: 16, fontWeight: "600" },
+  resetOption: { flexDirection: "row", alignItems: "center", gap: 12 },
+  resetLabel: { flex: 1, color: "#BFC1C3", fontSize: 14, lineHeight: 21 },
   disabled: { opacity: 0.4 },
   message: { color: "#A8C7FA", fontSize: 14, lineHeight: 21, marginTop: 12 },
 });

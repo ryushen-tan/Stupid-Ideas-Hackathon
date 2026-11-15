@@ -10,6 +10,8 @@ Accounts show clothing combinations on a mannequin with placement labels and per
 
 Main-screen accounts work offline and persist on the device: native apps use Expo SecureStore; the web preview uses browser storage. Browser storage is not encrypted, so use disposable accounts for web demos. Old demo outfit labels are left untouched in storage and no longer appear as authenticator accounts. The separate outfit-gated server vault remains under **Menu → Settings → Vault & scanners**.
 
+To repeat setup, open **Menu → Settings → Reset Drip data → Delete saved data**. This clears saved services, today’s outfit, clothing barcodes, and pending browser approvals while keeping your server/browser connection. Enable **Also disconnect server & browsers** for a full disconnect. Resetting Drip does not disable two-factor authentication on the websites you enrolled.
+
 The companion site at `http://localhost:3020` uses normal numerical TOTP entry. The browser extension fills that field after the three clothing barcode scans in Drip. The separate server vault retains its gated code-reveal flow.
 
 ## Browser extension
