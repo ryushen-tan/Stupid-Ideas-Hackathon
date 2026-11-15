@@ -3,6 +3,7 @@
 //   hoodie 10000xxx · pants 20000xxx · hat 30000xxx      xxx = 999 means "no height sensor"
 // The scanner carries the height into Drip, so the tag needs no wireless link.
 import { placements } from "./drip";
+import { parseTag } from "./tags";
 
 type Placement = (typeof placements)[number];
 
@@ -18,6 +19,16 @@ export function heightTag(raw: string): { id: string; heightCm: number } | null 
   const code = raw.trim();
   if (!/^[123]0000\d{3}$/.test(code)) return null;
   return { id: code.slice(0, 5), heightCm: Number(code.slice(5)) };
+}
+
+/** Same physical clothing tag? Hardware tags compare by garment ID only (the height digits change). */
+export function sameClothingTag(a: string, b: string): boolean {
+  const tagA = heightTag(a);
+  const tagB = heightTag(b);
+  if (tagA && tagB) return tagA.id === tagB.id;
+  const parsedA = parseTag(a);
+  const parsedB = parseTag(b);
+  return parsedA.barcode === parsedB.barcode && parsedA.serial === parsedB.serial;
 }
 
 /** Why this height is wrong for the placement, or null when it's fine. */

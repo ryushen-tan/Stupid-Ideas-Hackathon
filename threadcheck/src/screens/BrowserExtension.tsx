@@ -23,6 +23,7 @@ import {
   garmentSlot,
   hardwareClothingBarcodes,
 } from "../../shared/bridge";
+import { sameClothingTag } from "../../shared/height-tags";
 import { z } from "zod";
 import {
   SavedFit,
@@ -85,22 +86,19 @@ export default function BrowserExtension() {
     setError("");
     if (!nextSlot) return;
     try {
-      const tag = clothingBarcodeSchema.parse(code);
-      const scannedSlot = fitSlots.find(
-        (slot) =>
-          clothingBarcodeSchema.parse(hardwareClothingBarcodes[slot])
-            .barcode === tag.barcode,
+      clothingBarcodeSchema.parse(code); // valid barcode at all?
+      // Hardware tags end in their live height (e.g. 10000037), so match on the garment part
+      const scannedSlot = fitSlots.find((slot) =>
+        sameClothingTag(hardwareClothingBarcodes[slot], code),
       );
       if (!scannedSlot)
         throw new Error(
           "This tag is not one of your hoodie, pants, or hat tags.",
         );
       if (
-        fitSlots.some((slot) => {
-          if (!barcodes[slot]) return false;
-          const saved = clothingBarcodeSchema.parse(barcodes[slot]);
-          return saved.barcode === tag.barcode && saved.serial === tag.serial;
-        })
+        fitSlots.some(
+          (slot) => barcodes[slot] && sameClothingTag(barcodes[slot], code),
+        )
       )
         throw new Error("That item is already linked. Scan a different item.");
       setBarcodes((current) => ({ ...current, [scannedSlot]: code }));
