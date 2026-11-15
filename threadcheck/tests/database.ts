@@ -22,6 +22,16 @@ export async function testDatabase() {
     "utf8",
   );
   await store.database.query(migration.replaceAll("threadcheck", schema));
+  for (const filename of [
+    "20261115190000_browser_bridge.sql",
+    "20261115200000_browser_barcode_scans.sql",
+  ]) {
+    const migration = await readFile(
+      new URL(`../supabase/migrations/${filename}`, import.meta.url),
+      "utf8",
+    );
+    await store.database.query(migration.replaceAll("threadcheck", schema));
+  }
   await store.seed();
   return {
     store,

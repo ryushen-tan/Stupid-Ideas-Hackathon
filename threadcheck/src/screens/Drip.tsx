@@ -288,21 +288,18 @@ export default function Drip() {
               style={[
                 styles.sheet,
                 sheet.kind === "add" && {
-                  backgroundColor: "#F5F7F2",
+                  backgroundColor: colors.surface,
                   maxHeight: "95%",
                 },
               ]}
               accessibilityViewIsModal
             >
               <View style={styles.sheetHeader}>
-                <Text
-                  style={[
-                    styles.sheetTitle,
-                    sheet.kind === "add" && { color: "#203C3B" },
-                  ]}
-                >
-                  {sheet.kind === "add" ? "Scan setup QR" : sheet.row.issuer}
-                </Text>
+                {sheet.kind === "add" ? (
+                  <View style={{ flex: 1 }} />
+                ) : (
+                  <Text style={styles.sheetTitle}>{sheet.row.issuer}</Text>
+                )}
                 <Pressable
                   accessibilityLabel="Close dialog"
                   accessibilityRole="button"
@@ -315,6 +312,7 @@ export default function Drip() {
               {sheet.kind === "add" ? (
                 <ScrollView keyboardShouldPersistTaps="handled">
                   <AccountForm
+                    compact
                     onAdd={async (input) => {
                       const parsed = parseAccount(input);
                       if (

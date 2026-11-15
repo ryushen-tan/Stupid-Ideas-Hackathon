@@ -10,7 +10,11 @@ Accounts show clothing combinations on a mannequin with placement labels and per
 
 Main-screen accounts work offline and persist on the device: native apps use Expo SecureStore; the web preview uses browser storage. Browser storage is not encrypted, so use disposable accounts for web demos. Old demo outfit labels are left untouched in storage and no longer appear as authenticator accounts. The separate outfit-gated server vault remains under **Menu → Settings → Vault & scanners**.
 
-The companion site at `http://localhost:3020` currently expects numerical TOTP entry. The clothing-only main screen does not complete that verification flow; a clothing-verification integration is still needed. The separate server vault retains its gated code-reveal flow.
+The companion site at `http://localhost:3020` uses normal numerical TOTP entry. The browser extension fills that field after the three clothing barcode scans in Drip. The separate server vault retains its gated code-reveal flow.
+
+## Browser extension
+
+Use **Menu → Browser extension** to pair Chrome or Edge and approve website requests. Link the barcodes for your top, pants, and hat, then scan the displayed arrangement in head → body → feet order with a keyboard-mode store scanner. Three matching scans automatically send one current TOTP code to the requesting tab. The website keeps its usual numeric 2FA field. See [extension setup and usage](../browser-extension/README.md).
 
 ## Original vault workflow
 

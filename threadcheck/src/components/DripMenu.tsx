@@ -17,6 +17,11 @@ import Svg, { Circle, Path } from "react-native-svg";
 
 const entries = [
   {
+    id: "browser",
+    label: "Browser extension",
+    path: "M3 4h18v13H3V4Zm-1 16h20M9 17v3m6-3v3",
+  },
+  {
     id: "transfer",
     label: "Transfer accounts",
     path: "M4 15h12m-4-4 4 4-4 4M20 9H8m4-4L8 9l4 4",
@@ -119,6 +124,11 @@ export function DripMenu({
                     accessibilityRole="button"
                     accessibilityLabel={entry.label}
                     onPress={() => {
+                      if (entry.id === "browser") {
+                        onClose();
+                        router.push("/browser");
+                        return;
+                      }
                       setPage(entry.id);
                       setMessage("");
                       setInput("");
@@ -163,8 +173,8 @@ export function DripMenu({
                     </Text>
                     <Text style={styles.body}>
                       The mannequin shows which clothing item goes in each
-                      position. Follow the current arrangement before the
-                      timer resets.
+                      position. Follow the current arrangement before the timer
+                      resets.
                     </Text>
                     <Text style={styles.body}>
                       Scan your fit each morning. Review the cutouts to use your
@@ -249,8 +259,8 @@ export function DripMenu({
                     </Text>
                     <Text style={styles.secondary}>
                       Tap a service to change its account label or remove it.
-                      The separate outfit-gated vault is under
-                      Settings → Vault & scanners.
+                      The separate outfit-gated vault is under Settings → Vault
+                      & scanners.
                     </Text>
                   </>
                 )}

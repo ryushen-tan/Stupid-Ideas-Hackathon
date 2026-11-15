@@ -1,4 +1,5 @@
 import express from "express";
+import { browserBridge } from "./bridge";
 import { vaultRouter, VaultOptions, VaultError } from "./vault";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
@@ -56,6 +57,8 @@ export function createApp(
       response.json({ token });
     },
   );
+  const bridge = browserBridge(store, vaultOptions.encryptionKey);
+  app.use("/api/browser", bridge.browser);
   app.use("/api", async (request, response, next) => {
     const token = request.headers.authorization?.replace(/^Bearer /, "");
     const tokenHash = token
@@ -74,6 +77,7 @@ export function createApp(
     response.locals.tokenHash = tokenHash;
     next();
   });
+  app.use("/api/bridge", bridge.phone);
   app.get("/api/store", (_request, response) =>
     response.json({
       name: "Threadcheck Vault",
@@ -86,24 +90,20 @@ export function createApp(
     async (request, response) => {
       const { photo } = z.object({ photo: photoSchema }).parse(request.body);
       if (!extractFit) {
-        response
-          .status(503)
-          .json({
-            error: "Clothing detection is not configured on your vault.",
-          });
+        response.status(503).json({
+          error: "Clothing detection is not configured on your vault.",
+        });
         return;
       }
       try {
         response.json(await extractFit(photo));
       } catch (failure) {
-        response
-          .status(502)
-          .json({
-            error:
-              failure instanceof Error
-                ? failure.message
-                : "Could not scan your fit. Please retry.",
-          });
+        response.status(502).json({
+          error:
+            failure instanceof Error
+              ? failure.message
+              : "Could not scan your fit. Please retry.",
+        });
       }
     },
   );

@@ -3,3 +3,5 @@
 [Threadcheck](threadcheck/README.md): an Expo authenticator where your daily outfit and two snacks unlock real TOTP codes. Includes phone camera scans, USB/Bluetooth store-scanner input, biometric morning confirmation, local Supabase storage, and Backboard photo checks.
 
 [Entré login demo](login-demo/README.md): a Next.js + Tailwind companion website with real Google OAuth and Supabase password sign-in, QR authenticator enrollment, and TOTP verification. Run it at `http://localhost:3020` to use your authenticator app with a real two-factor login.
+
+[Drip browser extension](browser-extension/README.md): pair Chrome or Edge with Drip, complete a clothing check in the app, and fill the website’s existing two-factor code field.

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drip Authenticator</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icon-48.png" width="32" height="32" alt="" />
+      <h1>Drip Authenticator</h1>
+    </header>
+    <section id="connect">
+      <label for="server">Drip server</label
+      ><input
+        id="server"
+        type="url"
+        value="http://localhost:4310"
+        spellcheck="false"
+      /><button id="pair">Connect app</button>
+    </section>
+    <section id="pairing" hidden>
+      <p>In Drip, open <strong>Browser extension</strong> and enter:</p>
+      <div id="pair-code"></div>
+      <p class="muted">
+        Keep the phone and computer connected to the same Drip server.
+      </p>
+    </section>
+    <section id="ready" hidden>
+      <p id="website"></p>
+      <button id="fill">Request code from Drip</button>
+      <p class="muted">
+        Complete the clothing check in your app. Your code fills here
+        automatically.
+      </p>
+    </section>
+    <p id="status" role="status"></p>
+    <button id="disconnect" class="quiet" hidden>Disconnect browser</button
+    ><button id="forget" class="quiet" hidden>Reset connection</button>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>
