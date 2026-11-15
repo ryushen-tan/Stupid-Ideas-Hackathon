@@ -22,6 +22,11 @@ const entries = [
     path: "M3 4h18v13H3V4Zm-1 16h20M9 17v3m6-3v3",
   },
   {
+    id: "scanner-test",
+    label: "Test scanner",
+    path: "M4 6v12M7 6v12M10 6v12M14 6v12M17 6v12M20 6v12",
+  },
+  {
     id: "transfer",
     label: "Transfer accounts",
     path: "M4 15h12m-4-4 4 4-4 4M20 9H8m4-4L8 9l4 4",
@@ -129,6 +134,11 @@ export function DripMenu({
                         router.push("/browser");
                         return;
                       }
+                      if (entry.id === "scanner-test") {
+                        onClose();
+                        router.push("/scanner-test");
+                        return;
+                      }
                       setPage(entry.id);
                       setMessage("");
                       setInput("");
@@ -168,8 +178,8 @@ export function DripMenu({
                 {page === "how" && (
                   <>
                     <Text style={styles.body}>
-                      Read each outfit from top to bottom. The labels show
-                      where each piece belongs on the mannequin.
+                      Read each outfit from top to bottom. The labels show where
+                      each piece belongs on the mannequin.
                     </Text>
                     <Text style={styles.body}>
                       The mannequin shows which clothing item goes in each

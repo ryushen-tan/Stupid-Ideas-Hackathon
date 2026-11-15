@@ -14,6 +14,7 @@ import { Garment } from "../components/Garment";
 import { Button, common, Notice } from "../components/UI";
 import { fonts, palette } from "../theme";
 import { pickPhoto } from "../photos";
+import { scannerInputProps, useScannerDetection } from "../scanner";
 
 export type ScanMode = "camera" | "store" | "photo";
 
@@ -40,6 +41,7 @@ export function Scan({
   const [cameraKey, setCameraKey] = useState(0);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const pending = useRef(false);
+  const scannerStatus = useScannerDetection();
   async function scan(value: string, source: "camera" | "store" | "manual") {
     if (!session || pending.current) return;
     if (!value.trim()) {
@@ -66,6 +68,11 @@ export function Scan({
     } finally {
       pending.current = false;
       setBusy(false);
+      if (source === "store") {
+        // clear and refocus so the next scan lands in the field
+        setCode("");
+        setTimeout(() => input.current?.focus(), 0);
+      }
     }
   }
   async function compare(camera: boolean) {
@@ -207,9 +214,16 @@ export function Scan({
                 scanner. Set it to keyboard / HID mode with an Enter suffix.
               </Text>
               <View style={styles.scannerReady}>
-                <View style={styles.dot} />
+                <View
+                  style={[
+                    styles.dot,
+                    scannerStatus.detected && { backgroundColor: palette.lime },
+                  ]}
+                />
                 <Text style={styles.modeLabel}>
-                  Focus the field, then scan a tag
+                  {scannerStatus.detected
+                    ? "Scanner connected"
+                    : "Focus the field, then scan a tag"}
                 </Text>
               </View>
               <TextInput
@@ -219,13 +233,17 @@ export function Scan({
                 placeholder="Scan a clothing barcode…"
                 placeholderTextColor={palette.muted}
                 value={code}
-                onChangeText={setCode}
+                onChangeText={(text) => {
+                  scannerStatus.track(text);
+                  setCode(text);
+                }}
                 editable={!busy}
-                showSoftInputOnFocus={false}
-                autoCapitalize="none"
-                autoCorrect={false}
+                {...scannerInputProps}
                 returnKeyType="go"
-                onSubmitEditing={() => void scan(code, "store")}
+                onSubmitEditing={(event) => {
+                  scannerStatus.submitted(event.nativeEvent.text);
+                  void scan(event.nativeEvent.text, "store");
+                }}
                 style={styles.input}
               />
               <Button

@@ -1,4 +1,4 @@
-import { ComponentRef, useEffect, useRef, useState } from "react";
+import { ComponentRef, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -34,6 +34,10 @@ import { accountCode } from "../../shared/totp";
 import { loadAccounts, LocalAccount } from "../accounts";
 import { defaultServerUrl, request } from "../api";
 import { loadSession, saveSession } from "../session";
+import { openedInBrowser } from "../request-popup";
+import { scannerInputProps, useScannerDetection } from "../scanner";
+import { celebrate } from "../demo";
+import { SuccessBanner } from "../components/SuccessBanner";
 import { OutfitMannequin, ClothingImages } from "../components/OutfitMannequin";
 import { dripColors as colors } from "../drip-theme";
 
@@ -63,6 +67,8 @@ export default function BrowserExtension() {
   const [serverCode, setServerCode] = useState("");
   const [pairCode, setPairCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState("");
+  const dismissSent = useCallback(() => setSent(""), []);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -110,6 +116,14 @@ export default function BrowserExtension() {
         if (active) {
           setInbox(result);
           setConnectionError("");
+          // pop the newest website request straight open, no tapping needed
+          const next = result.requests.find((r) => !openedInBrowser.has(r.id));
+          if (next) {
+            openedInBrowser.add(next.id);
+            setSelected(next);
+            setMessage("");
+            setError("");
+          }
         }
       } catch (failure) {
         if (active)
@@ -338,10 +352,7 @@ export default function BrowserExtension() {
                       if (index < fitSlots.length - 1)
                         barcodeInputs.current[fitSlots[index + 1]]?.focus();
                     }}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    showSoftInputOnFocus={false}
-                    submitBehavior="submit"
+                    {...scannerInputProps}
                     editable={!busy}
                   />
                 ))}
@@ -377,8 +388,10 @@ export default function BrowserExtension() {
                 setup={selected.setup}
                 accounts={accounts}
                 onSent={() => {
+                  setSent(selected.setup?.issuer ?? selected.origin);
                   setSelected(null);
                   setMessage("Code sent to your browser.");
+                  celebrate();
                 }}
               />
             )}
@@ -478,6 +491,13 @@ export default function BrowserExtension() {
           </>
         ) : null}
       </ScrollView>
+      {!!sent && (
+        <SuccessBanner
+          title="Scans successful"
+          body={`Code sent to ${sent}.`}
+          onDismiss={dismissSent}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -496,6 +516,7 @@ function ClothingApproval({
   onSent: () => void;
 }) {
   const scanner = useRef<ComponentRef<typeof TextInput>>(null);
+  const scannerStatus = useScannerDetection();
   const [barcode, setBarcode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -585,18 +606,32 @@ function ClothingApproval({
             }
           </Text>
           <Text style={styles.note}>{matchedCount} of 3 scanned</Text>
+          <Text
+            accessibilityRole="text"
+            style={[
+              styles.note,
+              scannerStatus.detected && { color: "#A2FAA3" },
+            ]}
+          >
+            {scannerStatus.detected
+              ? "● Scanner connected"
+              : "○ Scan any tag to confirm the scanner is connected"}
+          </Text>
           <TextInput
             ref={scanner}
             accessibilityLabel="Clothing scanner input"
             autoFocus
-            showSoftInputOnFocus={false}
-            autoCorrect={false}
-            autoCapitalize="none"
-            submitBehavior="submit"
+            {...scannerInputProps}
             editable={!busy}
             value={barcode}
-            onChangeText={setBarcode}
-            onSubmitEditing={(event) => void complete(event.nativeEvent.text)}
+            onChangeText={(text) => {
+              scannerStatus.track(text);
+              setBarcode(text);
+            }}
+            onSubmitEditing={(event) => {
+              scannerStatus.submitted(event.nativeEvent.text);
+              void complete(event.nativeEvent.text);
+            }}
             placeholder={busy ? "Checking…" : "Waiting for your scanner…"}
             placeholderTextColor={colors.muted}
             style={styles.input}

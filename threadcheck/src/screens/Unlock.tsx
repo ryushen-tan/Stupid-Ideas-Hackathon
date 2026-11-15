@@ -19,6 +19,7 @@ import { CapturePhoto } from "../components/CapturePhoto";
 import { Garment } from "../components/Garment";
 import { Button, common, Notice, Pill } from "../components/UI";
 import { fonts, palette } from "../theme";
+import { scannerInputProps, useScannerDetection } from "../scanner";
 
 export function Unlock({
   session,
@@ -40,6 +41,7 @@ export function Unlock({
   const [offset, setOffset] = useState(0);
   const submitting = useRef(false);
   const scanner = useRef<ComponentRef<typeof TextInput>>(null);
+  const scannerStatus = useScannerDetection();
   useEffect(() => {
     let active = true;
     request<UnlockChallenge>(session, "/vault/challenges", {
@@ -281,20 +283,22 @@ export function Unlock({
               {current.category === "Snacks" ? (
                 <>
                   <Notice>
-                    Connect your USB or Bluetooth barcode scanner in keyboard
-                    mode, with an Enter suffix. Focus below, then scan this
-                    snack.
+                    {scannerStatus.detected
+                      ? "Scanner connected. Scan this snack."
+                      : "Connect your USB or Bluetooth barcode scanner in keyboard mode, with an Enter suffix. Focus below, then scan this snack."}
                   </Notice>
                   <TextInput
                     ref={scanner}
                     accessibilityLabel="Store scanner input"
                     autoFocus
-                    showSoftInputOnFocus={false}
-                    autoCorrect={false}
-                    autoCapitalize="none"
+                    {...scannerInputProps}
                     value={barcode}
-                    onChangeText={setBarcode}
+                    onChangeText={(text) => {
+                      scannerStatus.track(text);
+                      setBarcode(text);
+                    }}
                     onSubmitEditing={(event) => {
+                      scannerStatus.submitted(event.nativeEvent.text);
                       void prove({
                         source: "store",
                         code: event.nativeEvent.text,
