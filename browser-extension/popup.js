@@ -4,6 +4,7 @@ const elements = Object.fromEntries(
     "server",
     "pair",
     "pairing",
+    "demo-waiting",
     "pair-code",
     "ready",
     "website",
@@ -22,7 +23,8 @@ async function send(message) {
 async function refresh() {
   const state = await send({ type: "status" });
   elements.connect.hidden = state.connected;
-  elements.pairing.hidden = !state.connected || state.paired;
+  elements.pairing.hidden = !state.connected || state.paired || state.demo;
+  elements["demo-waiting"].hidden = !state.demo || state.paired;
   elements.ready.hidden = !state.paired;
   elements.disconnect.hidden = !state.connected;
   if (state.pairCode) elements["pair-code"].textContent = state.pairCode;

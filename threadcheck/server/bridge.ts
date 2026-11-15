@@ -18,6 +18,7 @@ import { VaultError } from "./vault";
 export function browserBridge(
   store: Store,
   encryptionKey: string,
+  demoAutoConnect = false,
   now = Date.now,
 ) {
   const browser = Router();
@@ -31,6 +32,9 @@ export function browserBridge(
     response.set("Cache-Control", "no-store");
     next();
   });
+  browser.get("/demo", (_request, response) =>
+    response.json({ enabled: demoAutoConnect }),
+  );
   browser.post(
     "/pair",
     rateLimit({ windowMs: 60_000, limit: 10 }),
@@ -39,21 +43,31 @@ export function browserBridge(
         .object({ name: z.string().trim().min(1).max(80) })
         .parse(request.body);
       await store.database.query(
-        'DELETE FROM browser_connections WHERE "expiresAt" <= $1 OR ("sessionToken" IS NULL AND "pairExpiresAt" <= $1)',
+        'DELETE FROM browser_connections WHERE "expiresAt" <= $1 OR ("sessionToken" IS NULL AND "pairExpiresAt" <= $1 AND NOT "demoMode")',
         [now()],
       );
+      const owner = demoAutoConnect
+        ? (
+            await store.database.query<{ sessionToken: string }>(
+              'SELECT d."sessionToken" FROM browser_demo d JOIN sessions s ON s.token=d."sessionToken" WHERE s."expiresAt">$1',
+              [now()],
+            )
+          ).rows[0]
+        : undefined;
       const token = randomBytes(32).toString("hex");
       const pairCode = String(randomInt(10000000, 100000000));
       const expiresAt = now() + 180_000;
       await store.database.query(
-        'INSERT INTO browser_connections (id,name,"tokenHash","pairCode","pairExpiresAt","expiresAt") VALUES ($1,$2,$3,$4,$5,$6)',
+        'INSERT INTO browser_connections (id,name,"tokenHash","pairCode","pairExpiresAt","expiresAt","sessionToken","demoMode") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
         [
           randomUUID(),
           name,
           createHash("sha256").update(token).digest("hex"),
-          pairCode,
+          owner ? null : pairCode,
           expiresAt,
           now() + 30 * 86400_000,
+          owner?.sessionToken ?? null,
+          demoAutoConnect,
         ],
       );
       response.status(201).json({ token, pairCode, expiresAt });
@@ -65,9 +79,14 @@ export function browserBridge(
       id: string;
       sessionToken: string | null;
       pairExpiresAt: number;
+      demoMode: boolean;
     }>(
-      'SELECT b.id,b."sessionToken",b."pairExpiresAt" FROM browser_connections b LEFT JOIN sessions s ON s.token=b."sessionToken" WHERE b."tokenHash"=$1 AND b."expiresAt">$2 AND ((b."sessionToken" IS NULL AND b."pairExpiresAt">$2) OR s."expiresAt">$2)',
-      [createHash("sha256").update(token).digest("hex"), now()],
+      'SELECT b.id,b."sessionToken",b."pairExpiresAt",b."demoMode" FROM browser_connections b LEFT JOIN sessions s ON s.token=b."sessionToken" WHERE b."tokenHash"=$1 AND b."expiresAt">$2 AND (NOT b."demoMode" OR $3) AND ((b."sessionToken" IS NULL AND (b."pairExpiresAt">$2 OR (b."demoMode" AND $3))) OR s."expiresAt">$2)',
+      [
+        createHash("sha256").update(token).digest("hex"),
+        now(),
+        demoAutoConnect,
+      ],
     );
     if (!result.rows[0])
       throw new VaultError(401, "Reconnect this browser in Drip.");
@@ -75,7 +94,10 @@ export function browserBridge(
     next();
   });
   browser.get("/status", (_request, response) =>
-    response.json({ paired: Boolean(response.locals.browser.sessionToken) }),
+    response.json({
+      paired: Boolean(response.locals.browser.sessionToken),
+      ...(response.locals.browser.demoMode ? { demo: true } : {}),
+    }),
   );
   browser.delete("/connection", async (_request, response) => {
     await store.database.query("DELETE FROM browser_connections WHERE id=$1", [
@@ -148,6 +170,26 @@ export function browserBridge(
     );
     response.status(204).end();
   });
+  phone.post("/demo/connect", async (_request, response) => {
+    if (!demoAutoConnect) {
+      response.json({ enabled: false });
+      return;
+    }
+    const owner = await store.database.query<{ sessionToken: string }>(
+      'INSERT INTO browser_demo ("sessionToken") VALUES ($1) ON CONFLICT (singleton) DO UPDATE SET "sessionToken"=browser_demo."sessionToken" RETURNING "sessionToken"',
+      [response.locals.tokenHash],
+    );
+    if (owner.rows[0].sessionToken !== response.locals.tokenHash)
+      throw new VaultError(
+        409,
+        "Demo mode is already connected to another Drip app. Use that app for this demo.",
+      );
+    await store.database.query(
+      'UPDATE browser_connections SET "sessionToken"=$1,"pairCode"=NULL WHERE "demoMode" AND "sessionToken" IS NULL AND "expiresAt">$2',
+      [response.locals.tokenHash, now()],
+    );
+    response.json({ enabled: true });
+  });
   phone.post(
     "/pair",
     rateLimit({ windowMs: 60_000, limit: 10 }),
@@ -156,7 +198,7 @@ export function browserBridge(
         .object({ code: z.string().regex(/^\d{8}$/) })
         .parse(request.body);
       const result = await store.database.query<{ id: string; name: string }>(
-        'UPDATE browser_connections SET "sessionToken"=$1,"pairCode"=NULL WHERE "pairCode"=$2 AND "pairExpiresAt">$3 AND "sessionToken" IS NULL RETURNING id,name',
+        'UPDATE browser_connections SET "sessionToken"=$1,"pairCode"=NULL WHERE "pairCode"=$2 AND "pairExpiresAt">$3 AND "sessionToken" IS NULL AND NOT "demoMode" RETURNING id,name',
         [response.locals.tokenHash, code, now()],
       );
       if (!result.rows[0])

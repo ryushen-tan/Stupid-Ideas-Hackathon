@@ -37,6 +37,7 @@ const server = createApp(
         process.env.BACKBOARD_PROVIDER ?? "openai",
       )
     : null,
+  process.env.BROWSER_DEMO_AUTO_CONNECT === "true",
 ).listen(port, "0.0.0.0", () => {
   console.log(
     `Threadcheck vault: http://localhost:${port}\nPairing code: ${pairingCode}\nPhoto checks: ${comparePhotos ? "Backboard enabled" : "not configured"}`,

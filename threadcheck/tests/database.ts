@@ -25,6 +25,7 @@ export async function testDatabase() {
   for (const filename of [
     "20261115190000_browser_bridge.sql",
     "20261115200000_browser_barcode_scans.sql",
+    "20261115210000_browser_demo.sql",
   ]) {
     const migration = await readFile(
       new URL(`../supabase/migrations/${filename}`, import.meta.url),

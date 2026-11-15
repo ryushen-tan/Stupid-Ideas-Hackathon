@@ -31,6 +31,9 @@ test.beforeAll(async () => {
     context.serviceWorkers()[0] ??
     (await context.waitForEvent("serviceworker"));
   extensionId = new URL(worker.url()).host;
+  await worker.evaluate(() =>
+    chrome.storage.local.set({ serverUrl: "http://127.0.0.1:4321" }),
+  );
 });
 test.afterEach(async ({}, testInfo) => {
   if (testInfo.status !== testInfo.expectedStatus && context) {
@@ -56,21 +59,7 @@ test.afterAll(async () => {
   if (profile) await rm(profile, { recursive: true, force: true });
 });
 
-async function inject(page) {
-  await page.bringToFront();
-  return worker.evaluate(async (url) => {
-    const tabs = await chrome.tabs.query({});
-    const tab = tabs.find((entry) => entry.url === url);
-    if (!tab) throw new Error("Test tab not found.");
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ["autofill.js", "content.js"],
-    });
-    return chrome.tabs.sendMessage(tab.id, { type: "start" });
-  }, page.url());
-}
-
-test("extension pairs with Drip, accepts three clothing scans, and fills real Next.js MFA", async ({
+test("demo auto-connects to Drip and fills real Next.js MFA after three clothing scans", async ({
   request,
 }) => {
   const configuration = JSON.parse(
@@ -107,10 +96,6 @@ test("extension pairs with Drip, accepts three clothing scans, and fills real Ne
     const secret = await website.locator("details code").textContent();
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-    await popup.locator("#server").fill("http://127.0.0.1:4321");
-    await popup.getByRole("button", { name: "Connect app" }).click();
-    await expect(popup.locator("#pair-code")).toHaveText(/\d{8}/);
-    const pairingCode = await popup.locator("#pair-code").textContent();
     const session = await (
       await request.get("http://127.0.0.1:4321/__test/session")
     ).json();
@@ -156,16 +141,19 @@ test("extension pairs with Drip, accepts three clothing scans, and fills real Ne
       { session, secret, email },
     );
     await app.goto("http://localhost:8081/browser");
-    await app
-      .getByRole("textbox", { name: "Browser pairing code" })
-      .fill(pairingCode);
-    await app
-      .getByRole("button", { name: "Pair browser", exact: true })
-      .click();
+    await expect(
+      app.getByText("Demo connected · Your browser connects automatically."),
+    ).toBeVisible();
+    await expect(
+      app.getByRole("textbox", { name: "Browser pairing code" }),
+    ).toHaveCount(0);
     await expect(
       popup.getByRole("button", { name: "Request code from Drip" }),
     ).toBeVisible();
-    expect((await inject(website)).ok).toBe(true);
+    await popup.reload();
+    await expect(
+      popup.getByRole("button", { name: "Request code from Drip" }),
+    ).toBeVisible();
     await app.bringToFront();
     await expect(
       website.getByRole("textbox", {

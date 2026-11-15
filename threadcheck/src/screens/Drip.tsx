@@ -30,6 +30,8 @@ import { ClothingImages, OutfitMannequin } from "../components/OutfitMannequin";
 import { dripColors as colors } from "../drip-theme";
 import { AccountForm } from "./AccountForm";
 import { loadAccounts, saveAccounts, LocalAccount } from "../accounts";
+import { loadSession } from "../session";
+import { request } from "../api";
 import { accountCode, parseAccount } from "../../shared/totp";
 
 const streetwear: ClothingImages = {
@@ -67,6 +69,22 @@ export default function Drip() {
 
   useEffect(() => {
     let mounted = true;
+    async function connectDemo() {
+      if (Platform.OS === "web") return;
+      try {
+        const session = await loadSession();
+        if (session)
+          await request(session, "/bridge/demo/connect", { method: "POST" });
+      } catch (failure) {
+        if (mounted)
+          setError(
+            failure instanceof Error
+              ? failure.message
+              : "Could not connect to your demo browser.",
+          );
+      }
+    }
+    void connectDemo();
     Promise.all([loadAccounts(), AsyncStorage.getItem(dailyFitStorageKey)])
       .then(([stored, savedFit]) => {
         if (mounted) {
@@ -81,7 +99,10 @@ export default function Drip() {
       });
     const interval = setInterval(() => setTimestamp(Date.now()), 250);
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") setTimestamp(Date.now());
+      if (state === "active") {
+        setTimestamp(Date.now());
+        void connectDemo();
+      }
     });
     return () => {
       mounted = false;

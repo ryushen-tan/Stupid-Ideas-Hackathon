@@ -72,26 +72,59 @@
       showStatus(failure.message);
     }
   }
+  async function start() {
+    if (pending) return { ok: true };
+    const fields = globalThis.dripAutofill.fields();
+    if (fields.some((input) => input.value))
+      throw new Error("Clear the verification field before requesting a code.");
+    clearTimeout(timer);
+    const result = await send({ type: "request" });
+    pending = { ...result, fields, origin: location.origin };
+    showStatus(
+      "Open Drip → Browser extension. Complete your clothing check to fill this code.",
+      true,
+    );
+    void poll();
+    return { ok: true };
+  }
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (message.type !== "start") return;
-    (async () => {
-      const fields = globalThis.dripAutofill.fields();
-      if (fields.some((input) => input.value))
-        throw new Error(
-          "Clear the verification field before requesting a code.",
-        );
-      clearTimeout(timer);
-      const result = await send({ type: "request" });
-      pending = { ...result, fields, origin: location.origin };
-      showStatus(
-        "Open Drip → Browser extension. Complete your clothing check to fill this code.",
-        true,
-      );
-      void poll();
-      return { ok: true };
-    })().then(respond, (failure) =>
+    start().then(respond, (failure) =>
       respond({ ok: false, error: failure.message }),
     );
     return true;
   });
+  if (
+    ["http://localhost:3020", "http://127.0.0.1:3020"].includes(location.origin)
+  ) {
+    let requestedField = null;
+    async function watchDemo() {
+      const field = document.querySelector(
+        'input[autocomplete="one-time-code"]',
+      );
+      try {
+        if (
+          field &&
+          field !== requestedField &&
+          !field.value &&
+          !field.disabled &&
+          field.getClientRects().length
+        ) {
+          const state = await send({ type: "demo-status" });
+          if (!state.demo) return;
+          if (state.paired) {
+            requestedField = field;
+            await start();
+          } else
+            showStatus(
+              "Open Drip on your phone to connect this demo automatically.",
+            );
+        }
+      } catch (failure) {
+        showStatus(failure.message);
+      }
+      setTimeout(watchDemo, 1500);
+    }
+    void watchDemo();
+  }
 })();

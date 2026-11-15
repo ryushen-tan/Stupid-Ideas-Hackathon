@@ -26,6 +26,16 @@ Keep the Expo app running as usual. Pair your USB/Bluetooth store scanner to the
 3. Enter the extension’s eight-digit pairing code in Drip and choose **Pair browser**. Both URLs must reach the same server. Pairing codes expire after three minutes.
 4. Add the website’s authenticator account with the + hat and scan your daily fit if you have not already done so.
 
+## Single-user demo mode
+
+Set `BROWSER_DEMO_AUTO_CONNECT=true` in `threadcheck/server/.env`, run `npm run db:migrate`, and restart the API. Reload the unpacked extension and the local login page after updating it.
+
+Open Drip on the phone that is already connected to this server. The first authenticated Drip app to open becomes the remembered demo app; opening **Browser extension** also registers it. Existing and new demo browsers then connect to that app automatically, with no browser pairing code. The binding survives API and browser restarts, until the phone session expires. A different Drip app cannot silently take over the demo.
+
+On `http://localhost:3020` or `http://127.0.0.1:3020`, the extension automatically requests a code when the empty one-time-code field appears. Choose the request/account in Drip, scan the three clothing tags, and the code fills itself. Other websites still use **Request code from Drip**. Disconnecting in the extension pauses automatic connection until **Connect app** is clicked again.
+
+This mode deliberately allows browsers reaching the demo relay to connect to the one demo phone. Use it only for this single-user demo. Normal pairing remains the default when the environment flag is off, and demo browser tokens stop working when it is disabled. TOTP secrets stay in the app, and codes still require all three barcode scans.
+
 ## Fill a verification code
 
 1. Reach the website’s verification-code screen and leave the field empty.
@@ -54,6 +64,6 @@ npx playwright install chromium
 npm test
 ```
 
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE` can point to an already-installed Chrome for Testing executable. Tests launch an isolated profile with the actual unpacked extension and a temporary relay schema. They exercise pairing, the app’s three-barcode flow, real Supabase MFA enrollment, automatic filling of the React-controlled Next.js field, successful login, split digit boxes, and refusal of ambiguous/hidden/replaced fields. The test types barcode text and Enter as a keyboard-mode scanner would, including a rejected wrong scan and checks that no code arrives early. Test users and schemas are removed afterward. A physical scanner still needs an on-device check.
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` can point to an already-installed Chrome for Testing executable. Tests launch an isolated profile with the actual unpacked extension and a temporary relay schema. They exercise demo auto-connection without entering a browser code, automatic requests on the local login page, the app’s three-barcode flow, real Supabase MFA enrollment, automatic filling of the React-controlled Next.js field, successful login, split digit boxes, and refusal of ambiguous/hidden/replaced fields. The test types barcode text and Enter as a keyboard-mode scanner would, including a rejected wrong scan and checks that no code arrives early. Test users and schemas are removed afterward. A physical scanner still needs an on-device check.
 
 The authenticator’s `npm test` separately checks unauthorized access, incorrect/out-of-order/duplicate scans, concurrent submissions, account selection immutability, expired codes, request expiry, cancellation, revocation, and single-use delivery.

@@ -66,6 +66,7 @@ export default function BrowserExtension() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [demoConnected, setDemoConnected] = useState(false);
   const [connectionError, setConnectionError] = useState("");
 
   useEffect(() => {
@@ -99,6 +100,12 @@ export default function BrowserExtension() {
     let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try {
+        const demo = await request<{ enabled: boolean }>(
+          connection,
+          "/bridge/demo/connect",
+          { method: "POST" },
+        );
+        if (active) setDemoConnected(demo.enabled);
         const result = await request<BrowserInbox>(connection, "/bridge/inbox");
         if (active) {
           setInbox(result);
@@ -437,29 +444,37 @@ export default function BrowserExtension() {
                 </Pressable>
               </View>
             ))}
-            <TextInput
-              accessibilityLabel="Browser pairing code"
-              placeholder="8-digit code from the extension"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={pairCode}
-              onChangeText={setPairCode}
-              maxLength={8}
-              keyboardType="number-pad"
-            />
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy || pairCode.length !== 8}
-              onPress={() => void pairBrowser()}
-              style={[
-                styles.button,
-                (busy || pairCode.length !== 8) && styles.disabled,
-              ]}
-            >
-              <Text style={styles.buttonText}>
-                {busy ? "Connecting…" : "Pair browser"}
+            {demoConnected ? (
+              <Text style={styles.note}>
+                Demo connected · Your browser connects automatically.
               </Text>
-            </Pressable>
+            ) : (
+              <>
+                <TextInput
+                  accessibilityLabel="Browser pairing code"
+                  placeholder="8-digit code from the extension"
+                  placeholderTextColor={colors.muted}
+                  style={styles.input}
+                  value={pairCode}
+                  onChangeText={setPairCode}
+                  maxLength={8}
+                  keyboardType="number-pad"
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy || pairCode.length !== 8}
+                  onPress={() => void pairBrowser()}
+                  style={[
+                    styles.button,
+                    (busy || pairCode.length !== 8) && styles.disabled,
+                  ]}
+                >
+                  <Text style={styles.buttonText}>
+                    {busy ? "Connecting…" : "Pair browser"}
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </>
         ) : null}
       </ScrollView>

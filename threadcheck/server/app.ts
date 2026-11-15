@@ -18,6 +18,7 @@ export function createApp(
   comparePhotos: ComparePhotos | null,
   vaultOptions: VaultOptions,
   extractFit: ExtractFit | null = null,
+  demoAutoConnect = false,
 ) {
   const app = express();
   app.disable("x-powered-by");
@@ -57,7 +58,11 @@ export function createApp(
       response.json({ token });
     },
   );
-  const bridge = browserBridge(store, vaultOptions.encryptionKey);
+  const bridge = browserBridge(
+    store,
+    vaultOptions.encryptionKey,
+    demoAutoConnect,
+  );
   app.use("/api/browser", bridge.browser);
   app.use("/api", async (request, response, next) => {
     const token = request.headers.authorization?.replace(/^Bearer /, "");

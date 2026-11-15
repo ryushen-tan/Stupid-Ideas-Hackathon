@@ -14,7 +14,7 @@ The companion site at `http://localhost:3020` uses normal numerical TOTP entry. 
 
 ## Browser extension
 
-Use **Menu → Browser extension** to pair Chrome or Edge and approve website requests. Link the barcodes for your top, pants, and hat, then scan the displayed arrangement in head → body → feet order with a keyboard-mode store scanner. Three matching scans automatically send one current TOTP code to the requesting tab. The website keeps its usual numeric 2FA field. See [extension setup and usage](../browser-extension/README.md).
+Use **Menu → Browser extension** to pair Chrome or Edge and approve website requests. Link the barcodes for your top, pants, and hat, then scan the displayed arrangement in head → body → feet order with a keyboard-mode store scanner. Three matching scans automatically send one current TOTP code to the requesting tab. The website keeps its usual numeric 2FA field. For the single-user demo, `BROWSER_DEMO_AUTO_CONNECT=true` remembers the first connected Drip app and pairs browsers automatically. The local login page also requests its code automatically. See [extension setup and usage](../browser-extension/README.md).
 
 ## Original vault workflow
 
