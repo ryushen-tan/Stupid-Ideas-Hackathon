@@ -158,7 +158,8 @@ export function DripMenu({
                 {page === "how" && (
                   <>
                     <Text style={styles.body}>
-                      Read each outfit from top to bottom: head, body, feet.
+                      Read each outfit from top to bottom. The labels show
+                      where each piece belongs on the mannequin.
                     </Text>
                     <Text style={styles.body}>
                       The mannequin shows which clothing item goes in each

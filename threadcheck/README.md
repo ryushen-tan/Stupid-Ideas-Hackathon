@@ -6,7 +6,7 @@
 
 Tap the **+ hat** on the main screen to open the camera scanner. In the app or website you want to protect (Microsoft, Google, Entré, etc.), open two-factor authentication settings, choose an authenticator app, and scan its setup QR. If you cannot use the camera, choose **Enter key** and enter the service name, account label, and Base32 setup key.
 
-Accounts show clothing combinations vertically on a mannequin, with head, body, and feet labels and per-service countdowns. Numeric TOTP codes are used internally to select the arrangement but are never rendered or offered for copying on the main screen or account details. Tap an account to rename its label or remove it. Search matches service names and account labels, and daily fit cutouts replace the bundled clothing images.
+Accounts show clothing combinations on a mannequin with placement labels and per-service countdowns. The hoodie fits the torso, a lower cap covers the crotch, pants on the head form a tied wrap, a hoodie on the head forms a durag, and a lower hoodie flips upside down. Scanned cutouts use the same positioning; the wrap clips the actual pants image into illustrated folds. Numeric TOTP codes are used internally to select the arrangement but are never rendered or offered for copying on the main screen or account details. Tap an account to rename its label or remove it. Search matches service names and account labels, and daily fit cutouts replace the bundled clothing images.
 
 Main-screen accounts work offline and persist on the device: native apps use Expo SecureStore; the web preview uses browser storage. Browser storage is not encrypted, so use disposable accounts for web demos. Old demo outfit labels are left untouched in storage and no longer appear as authenticator accounts. The separate outfit-gated server vault remains under **Menu → Settings → Vault & scanners**.
 
@@ -90,6 +90,6 @@ This is a **single-user hackathon prototype with real TOTP generation**, not an 
 
 ## Design
 
-The primary screen uses system typography, background `#131314`, surfaces `#27292B`, and pale blue `#A8C7FA`. Backboard-generated streetwear images accompany numerical codes: an ivory graffiti hoodie, indigo carpenter jeans, and a sage embroidered cap. The three assets are bundled locally, so viewing them does not call the API. Generation provenance is in `assets/streetwear/generation.json`; `node scripts/generate-streetwear.mjs hoodie` (or `pants` / `hat`) regenerates one asset using the server-only Backboard key. The original mint-and-white vault remains in the secondary route.
+The primary screen uses system typography, background `#131314`, surfaces `#27292B`, and pale blue `#A8C7FA`. Transparent Backboard streetwear cutouts dress a neutral mannequin: an ivory graffiti hoodie, indigo carpenter jeans, and a sage embroidered cap. The three assets are bundled locally, so viewing them does not call the API. Generation provenance is in `assets/streetwear/generation.json`; `node scripts/generate-streetwear.mjs hoodie` (or `pants` / `hat`) regenerates the source artwork using the server-only Backboard key. The original mint-and-white vault remains in the secondary route.
 
-Screenshots in `docs/` show local test data, not linked external accounts. `docs/drip-phone.png` shows the current primary screen; older screenshots document the original vault.
+Screenshots in `docs/` show local test data, not linked external accounts. `docs/mannequin-poses.png` shows all three clothing arrangements; older screenshots document earlier layouts and the original vault.

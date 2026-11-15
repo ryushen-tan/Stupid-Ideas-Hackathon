@@ -4,7 +4,7 @@
     "provider": "Backboard",
     "model": "openai/gpt-image-2",
     "generatedAt": "2026-11-15T18:16:00",
-    "prompt": "Create ONE isolated clothing asset for a streetwear outfit authenticator app. An oversized washed ivory Stüssy-inspired streetwear T-shirt, short dropped sleeves, chunky black hand-drawn graffiti DRIP wordmark across the chest, small black eight-ball graphic below. Front view. Garment alone, unworn, no person, mannequin, hanger, hands or extra objects. High-end playful 3D cartoon product illustration with soft fabric folds, tactile fabric, crisp silhouette, restrained cel shading. Readable at 72px. Centered, fills 85 percent of a square image with clear padding on every side. Background must be a completely uniform solid exact hex #131314, no gradient, no floor, no shadow outside garment, no frame. One garment only."
+    "prompt": "Create ONE isolated clothing asset for a streetwear outfit authenticator app. An oversized washed ivory St\u00fcssy-inspired streetwear T-shirt, short dropped sleeves, chunky black hand-drawn graffiti DRIP wordmark across the chest, small black eight-ball graphic below. Front view. Garment alone, unworn, no person, mannequin, hanger, hands or extra objects. High-end playful 3D cartoon product illustration with soft fabric folds, tactile fabric, crisp silhouette, restrained cel shading. Readable at 72px. Centered, fills 85 percent of a square image with clear padding on every side. Background must be a completely uniform solid exact hex #131314, no gradient, no floor, no shadow outside garment, no frame. One garment only."
   },
   {
     "asset": "pants.png",
@@ -25,6 +25,27 @@
     "provider": "Backboard",
     "model": "openai/gpt-image-2",
     "generatedAt": "2026-11-15T18:19:54",
-    "prompt": "Create ONE isolated clothing asset for a streetwear outfit authenticator app. An oversized washed ivory Stüssy-inspired pullover streetwear hoodie, thick cotton fleece, large clearly visible hood, long dropped sleeves, ribbed cuffs and hem, roomy kangaroo pocket, chunky black hand-drawn graffiti DRIP wordmark across the chest, small black eight-ball graphic below. Front view, entire hood and both sleeves visible. Garment alone, unworn, no person, mannequin, hanger, hands or extra objects. High-end playful 3D cartoon product illustration with soft fabric folds, tactile fabric, crisp silhouette, restrained cel shading. Readable at 72px. Centered, fills 85 percent of a square image with clear padding on every side. Background must be a completely uniform solid exact hex #131314, no gradient, no floor, no shadow outside garment, no frame. One garment only."
+    "prompt": "Create ONE isolated clothing asset for a streetwear outfit authenticator app. An oversized washed ivory St\u00fcssy-inspired pullover streetwear hoodie, thick cotton fleece, large clearly visible hood, long dropped sleeves, ribbed cuffs and hem, roomy kangaroo pocket, chunky black hand-drawn graffiti DRIP wordmark across the chest, small black eight-ball graphic below. Front view, entire hood and both sleeves visible. Garment alone, unworn, no person, mannequin, hanger, hands or extra objects. High-end playful 3D cartoon product illustration with soft fabric folds, tactile fabric, crisp silhouette, restrained cel shading. Readable at 72px. Centered, fills 85 percent of a square image with clear padding on every side. Background must be a completely uniform solid exact hex #131314, no gradient, no floor, no shadow outside garment, no frame. One garment only."
+  },
+  {
+    "asset": "hoodie-cutout.png",
+    "provider": "Backboard",
+    "model": "fal/bria/extract-object",
+    "source": "hoodie.png",
+    "processing": "Extracted garment from the original generated streetwear preview, transparent background, trimmed and fitted into a 320px square. Reused the verified daily-fit cutout output."
+  },
+  {
+    "asset": "pants-cutout.png",
+    "provider": "Backboard",
+    "model": "fal/bria/extract-object",
+    "source": "pants.png",
+    "processing": "Extracted garment from the original generated streetwear preview, transparent background, trimmed and fitted into a 320px square. Reused the verified daily-fit cutout output."
+  },
+  {
+    "asset": "hat-cutout.png",
+    "provider": "Backboard",
+    "model": "fal/bria/extract-object",
+    "source": "hat.png",
+    "processing": "Extracted garment from the original generated streetwear preview, transparent background, trimmed and fitted into a 320px square. Reused the verified daily-fit cutout output."
   }
 ]

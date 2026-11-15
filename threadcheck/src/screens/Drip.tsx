@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   AppState,
-  Image,
-  ImageSourcePropType,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
-import { currentOutfit, Outfit, placements } from "../../shared/drip";
+import { currentOutfit } from "../../shared/drip";
 import {
   dailyFitStorageKey,
   localDay,
@@ -28,36 +26,27 @@ import {
 import { ScanFit } from "./ScanFit";
 import { DripMenu } from "../components/DripMenu";
 import { Garment } from "../components/Garment";
+import { ClothingImages, OutfitMannequin } from "../components/OutfitMannequin";
+import { dripColors as colors } from "../drip-theme";
 import { AccountForm } from "./AccountForm";
 import { loadAccounts, saveAccounts, LocalAccount } from "../accounts";
 import { accountCode, parseAccount } from "../../shared/totp";
 
-const streetwear: Record<
-  Outfit["head"],
-  { source: ImageSourcePropType; name: string }
-> = {
+const streetwear: ClothingImages = {
   hoodie: {
-    source: require("../../assets/streetwear/hoodie.png"),
+    source: require("../../assets/streetwear/hoodie-cutout.png"),
     name: "Ivory graffiti hoodie",
   },
   pants: {
-    source: require("../../assets/streetwear/pants.png"),
+    source: require("../../assets/streetwear/pants-cutout.png"),
     name: "Indigo carpenter jeans",
   },
   hat: {
-    source: require("../../assets/streetwear/hat.png"),
+    source: require("../../assets/streetwear/hat-cutout.png"),
     name: "Sage embroidered cap",
   },
 };
 
-const colors = {
-  background: "#131314",
-  surface: "#27292B",
-  text: "#E3E3E3",
-  muted: "#BFC1C3",
-  blue: "#A8C7FA",
-  line: "#424547",
-};
 type Sheet =
   | { kind: "menu" }
   | { kind: "scan" }
@@ -232,36 +221,7 @@ export default function Drip() {
                 <Text style={styles.rowTitle}>{row.issuer}</Text>
                 <Text style={styles.note}>{row.label}</Text>
                 <View style={styles.code}>
-                  <View style={styles.garments}>
-                    <Svg
-                      width={112}
-                      height={240}
-                      viewBox="0 0 112 240"
-                      style={styles.mannequin}
-                    >
-                      <Circle cx={56} cy={34} r={24} fill="#202225" />
-                      <Path
-                        d="M44 62H68L88 77L104 139L93 143L76 98V146L73 220H60L56 163L52 220H39L36 146V98L19 143L8 139L24 77Z"
-                        fill="#202225"
-                        stroke={colors.line}
-                        strokeWidth={1.5}
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                    {placements.map((place) => (
-                      <View key={place} style={styles.placement}>
-                        <Image
-                          source={clothing[outfit[place]].source}
-                          accessibilityLabel={`${clothing[outfit[place]].name} on your ${place}`}
-                          style={styles.clothingImage}
-                          resizeMode="contain"
-                          fadeDuration={0}
-                        />
-                        <View style={styles.placementLine} />
-                        <Text style={styles.place}>{place}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  <OutfitMannequin outfit={outfit} clothing={clothing} />
                   <Countdown remaining={remaining} period={row.period} />
                 </View>
               </Pressable>
@@ -522,17 +482,6 @@ const styles = StyleSheet.create({
   },
   rowTitle: { color: colors.text, fontSize: 18, lineHeight: 25 },
   code: { flexDirection: "row", alignItems: "center", marginTop: 9 },
-  garments: {
-    flex: 1,
-    alignItems: "flex-start",
-    maxWidth: 260,
-    marginLeft: "auto",
-  },
-  mannequin: { position: "absolute", top: 0, left: 0 },
-  placement: { flexDirection: "row", alignItems: "center", height: 80 },
-  clothingImage: { width: 80, height: 76, marginHorizontal: 16 },
-  placementLine: { width: 18, height: 1, backgroundColor: colors.line },
-  place: { color: colors.blue, fontSize: 13, marginLeft: 10 },
   timer: { marginLeft: "auto", paddingRight: 10 },
   pressed: { opacity: 0.65 },
   add: {
